@@ -1,0 +1,21 @@
+const express = require("express")
+const router = express.Router()
+const analyticController = require("../controller/analyticController")
+const { authenticate, authorizeAdmin } = require("../middleware/auth.middleware")
+
+router.get("/dashboard", authenticate, authorizeAdmin, analyticController.getDashboardStats)
+router.get("/realtime", authenticate, authorizeAdmin, analyticController.getRealTimeStats)
+router.get("/orders", authenticate, authorizeAdmin, analyticController.getOrderAnalytics)
+router.get("/daily-sales", authenticate, authorizeAdmin, analyticController.getDailySalesData)
+router.get("/revenue-trends", authenticate, authorizeAdmin, analyticController.getRevenueTrends)
+router.get("/products", authenticate, authorizeAdmin, analyticController.getProductAnalytics)
+router.get("/top-products", authenticate, authorizeAdmin, analyticController.getTopProducts)
+router.get("/low-stock", authenticate, authorizeAdmin, analyticController.getLowStockProducts)
+router.get("/categories", authenticate, authorizeAdmin, analyticController.getCategoryStats)
+router.get("/users", authenticate, authorizeAdmin, analyticController.getUserAnalytics)
+router.get("/top-customers", authenticate, authorizeAdmin, analyticController.getTopCustomers)
+router.get("/user-growth", authenticate, authorizeAdmin, analyticController.getUserGrowth)
+router.get("/cache-stats", authenticate, authorizeAdmin, analyticController.getCacheStats)
+router.delete("/cache", authenticate, authorizeAdmin, analyticController.invalidateCache)
+
+module.exports = router

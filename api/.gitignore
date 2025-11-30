@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+**/node_modules/
+package-lock.json
+yarn.lock
+
+# Environment variables - NEVER COMMIT THESE
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Logs
+logs/
+*.log
+!logs/.gitkeep
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Temporary files
+uploads/
+!uploads/.gitkeep
+uploads/**/*
+!uploads/.gitkeep
+tmp/
+temp/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Optional npm cache directory
+.npm
+*.md
+# Optional eslint cache
+.eslintcache
+
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Redis dump
+dump.rdb 
