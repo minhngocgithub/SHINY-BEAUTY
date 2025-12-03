@@ -78,7 +78,7 @@
                             d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                           />
                         </svg>
-                        Shopping Cart
+                        Your's Cart
                       </h2>
                       <p class="mt-1 text-sm text-white/80">
                         {{ cartStore.cartCount }}
@@ -173,7 +173,7 @@
                   <!-- ✅ Shipping Suggestion Banner -->
                   <div
                     v-if="shippingSuggestion && selectedCount > 0"
-                    class="p-3 rounded-lg border-2 transition-all"
+                    class="p-3 transition-all border-2 rounded-lg"
                     :class="{
                       'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700':
                         shippingSuggestion.type === 'success',
@@ -184,7 +184,7 @@
                     }"
                   >
                     <div class="flex items-start gap-2">
-                      <span class="text-xl flex-shrink-0">{{
+                      <span class="flex-shrink-0 text-xl">{{
                         shippingSuggestion.icon
                       }}</span>
                       <div class="flex-1">
@@ -204,10 +204,10 @@
                         <!-- Progress bar for "almost there" states -->
                         <div
                           v-if="shippingSuggestion.progress"
-                          class="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden dark:bg-gray-700"
+                          class="h-2 mt-2 overflow-hidden bg-gray-200 rounded-full dark:bg-gray-700"
                         >
                           <div
-                            class="h-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-300"
+                            class="h-full transition-all duration-300 bg-gradient-to-r from-blue-500 to-green-500"
                             :style="{
                               width: `${shippingSuggestion.progress}%`,
                             }"
@@ -438,7 +438,7 @@
                   </div>
 
                   <!-- Info note about shipping calculation -->
-                  <p class="text-xs text-gray-500 text-center pt-2">
+                  <p class="pt-2 text-xs text-center text-gray-500">
                     💡 Phí ship & thuế sẽ được tính khi thanh toán
                   </p>
 
@@ -585,7 +585,10 @@ const formattedItems = computed(() => {
         _id: item._id,
         name: data.name || "Unknown Item",
         brand: data.brand || "",
-        image: data.images?.[0]?.url || data.image?.url || "/placeholder.jpg",
+        image:
+          data.image && Array.isArray(data.image) && data.image.length > 0
+            ? data.image[0].url
+            : "/placeholder.jpg",
         displayPrice: item.finalPrice || data.salePrice || data.price || 0,
         originalPrice: item.originalPrice || data.price || 0,
         quantity: item.quantity || 1,
@@ -637,7 +640,6 @@ const toggleItemSelection = (itemId) => {
 const toggleCart = async () => {
   if (!isCartOpen.value) {
     await cartStore.fetchCart();
-    // Select all items by default when opening cart
     selectedItems.value = new Set(formattedItems.value.map((item) => item._id));
     selectAll.value = true;
   }
@@ -674,7 +676,6 @@ const calculateSelectedDiscount = () => {
   }, 0);
 };
 
-// ✅ Use centralized pricing calculation
 const pricingDetails = computed(() => {
   if (selectedCount.value === 0) {
     return {
@@ -687,7 +688,6 @@ const pricingDetails = computed(() => {
     };
   }
 
-  // Convert selected items to checkout format
   const checkoutItems = selectedItemsData.value.map((item) => ({
     product:
       item.itemType === "product"
@@ -704,12 +704,12 @@ const pricingDetails = computed(() => {
 
   return calculateOrderPricing(
     checkoutItems,
-    0, // loyaltyPoints
-    0, // couponDiscount
+    0,
+    0,
     cartStore.cartSummary?.cartBenefits || {},
     {
       userLoyaltyTier: null,
-      paymentMethod: "COD", // Default for cart preview
+      paymentMethod: "COD",
     }
   );
 });
@@ -721,7 +721,6 @@ const shippingReasonText = computed(() =>
   formatShippingReason(pricingDetails.value.shippingReason)
 );
 
-// ✅ Shipping suggestion logic (like Shopee/Lazada)
 const shippingSuggestion = computed(() => {
   const selected = selectedItemsData.value;
   if (selected.length === 0) return null;
@@ -759,8 +758,6 @@ const shippingSuggestion = computed(() => {
       progress: (totalQty / 5) * 100,
     };
   }
-
-  // Has shipping fee but far from free shipping
   if (subtotal < 40 && totalQty < 3) {
     return {
       type: "neutral",
@@ -791,10 +788,8 @@ const increaseQuantity = async (item) => {
 };
 
 const decreaseQuantity = async (item) => {
-  console.log("🔽 Decrease quantity:", item._id, "current:", item.quantity);
-
   if (item.quantity <= 1) {
-    console.warn("⚠️ Cannot decrease - minimum quantity is 1");
+    console.warn("Cannot decrease - minimum quantity is 1");
     return;
   }
 
@@ -820,13 +815,6 @@ const confirmClearCart = () => {
 };
 
 const executeRemoval = async () => {
-  console.log(
-    "🗑️ Execute removal:",
-    confirmAction.value,
-    "itemId:",
-    itemToRemove.value
-  );
-
   try {
     if (confirmAction.value === "clear") {
       clearLoading.value = true;
@@ -839,7 +827,7 @@ const executeRemoval = async () => {
     itemToRemove.value = null;
     confirmAction.value = null;
   } catch (error) {
-    console.error("❌ Failed to remove:", error);
+    console.error("Failed to remove:", error);
     alert(`Failed to remove: ${error.message || "Unknown error"}`);
   } finally {
     removeLoading.value = false;
@@ -855,7 +843,6 @@ const goToCheckout = () => {
 onMounted(() => {
   if (authStore.isLoggedIn) {
     cartStore.fetchCart().then(() => {
-      // Select all items by default on mount
       selectedItems.value = new Set(
         formattedItems.value.map((item) => item._id)
       );

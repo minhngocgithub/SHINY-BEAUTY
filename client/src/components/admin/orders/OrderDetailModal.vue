@@ -11,15 +11,15 @@
 
       <!-- Modal panel -->
       <div
-        class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full"
+        class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800 sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full"
       >
         <!-- Header -->
         <div
-          class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center"
+          class="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700"
         >
           <div>
             <h3 class="text-xl font-bold text-white">Order Details</h3>
-            <p class="text-blue-100 text-sm mt-1">
+            <p class="mt-1 text-sm text-blue-100">
               {{ order.orderNumber || order._id }}
             </p>
           </div>
@@ -44,9 +44,9 @@
         </div>
 
         <!-- Loading State -->
-        <div v-if="loading" class="p-8 flex justify-center">
+        <div v-if="loading" class="flex justify-center p-8">
           <div
-            class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500"
+            class="w-12 h-12 border-t-4 border-b-4 border-blue-500 rounded-full animate-spin"
           ></div>
         </div>
 
@@ -54,7 +54,7 @@
         <div v-else class="max-h-[80vh] overflow-y-auto">
           <!-- Order Info Grid -->
           <div
-            class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-gray-50 dark:bg-gray-900"
+            class="grid grid-cols-1 gap-6 p-6 md:grid-cols-3 bg-gray-50 dark:bg-gray-900"
           >
             <div>
               <p class="text-sm text-gray-500 dark:text-gray-400">Customer</p>
@@ -75,7 +75,7 @@
               <p class="text-sm text-gray-500 dark:text-gray-400">
                 Total Amount
               </p>
-              <p class="font-bold text-2xl text-blue-600 dark:text-blue-400">
+              <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 ${{ order.totalPrice?.toFixed(2) }}
               </p>
             </div>
@@ -104,19 +104,19 @@
           <div class="p-6">
             <!-- Items Tab -->
             <div v-if="activeTab === 'items'">
-              <h4 class="font-semibold text-gray-900 dark:text-white mb-4">
+              <h4 class="mb-4 font-semibold text-gray-900 dark:text-white">
                 Order Items
               </h4>
               <div class="space-y-4">
                 <div
                   v-for="item in order.orderItems"
                   :key="item._id"
-                  class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                  class="flex items-center gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-900"
                 >
                   <img
-                    :src="item.product?.images?.[0] || '/placeholder.png'"
-                    :alt="item.product?.name"
-                    class="w-20 h-20 object-cover rounded"
+                    :src="getItemImage(item)"
+                    :alt="getItemName(item)"
+                    class="object-cover w-20 h-20 rounded"
                   />
                   <div class="flex-1">
                     <h5 class="font-semibold text-gray-900 dark:text-white">
@@ -139,7 +139,7 @@
 
               <!-- Price Breakdown -->
               <div
-                class="mt-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 space-y-2"
+                class="p-4 mt-6 space-y-2 rounded-lg bg-blue-50 dark:bg-blue-900/20"
               >
                 <div class="flex justify-between text-sm">
                   <span class="text-gray-600 dark:text-gray-400">Subtotal</span>
@@ -160,7 +160,7 @@
                   >
                 </div>
                 <div
-                  class="flex justify-between text-lg font-bold border-t border-blue-200 dark:border-blue-700 pt-2"
+                  class="flex justify-between pt-2 text-lg font-bold border-t border-blue-200 dark:border-blue-700"
                 >
                   <span class="text-gray-900 dark:text-white">Total</span>
                   <span class="text-blue-600 dark:text-blue-400"
@@ -174,7 +174,7 @@
             <div v-else-if="activeTab === 'timeline'" class="space-y-4">
               <div
                 v-if="timeline.length === 0"
-                class="text-center py-8 text-gray-500 dark:text-gray-400"
+                class="py-8 text-center text-gray-500 dark:text-gray-400"
               >
                 No timeline data available
               </div>
@@ -185,7 +185,7 @@
                 <div
                   v-for="(event, index) in timeline"
                   :key="index"
-                  class="relative pl-12 pb-8 last:pb-0"
+                  class="relative pb-8 pl-12 last:pb-0"
                 >
                   <div
                     :class="[
@@ -205,20 +205,20 @@
                       />
                     </svg>
                   </div>
-                  <div class="bg-white dark:bg-gray-900 rounded-lg p-4 shadow">
-                    <div class="flex justify-between items-start">
+                  <div class="p-4 bg-white rounded-lg shadow dark:bg-gray-900">
+                    <div class="flex items-start justify-between">
                       <div>
                         <h5 class="font-semibold text-gray-900 dark:text-white">
                           {{ formatStatus(event.status) }}
                         </h5>
                         <p
-                          class="text-sm text-gray-600 dark:text-gray-400 mt-1"
+                          class="mt-1 text-sm text-gray-600 dark:text-gray-400"
                         >
                           {{ event.message }}
                         </p>
                         <p
                           v-if="event.location"
-                          class="text-xs text-gray-500 dark:text-gray-500 mt-1"
+                          class="mt-1 text-xs text-gray-500 dark:text-gray-500"
                         >
                           📍 {{ event.location }}
                         </p>
@@ -234,24 +234,24 @@
 
             <!-- Tracking Tab -->
             <div v-else-if="activeTab === 'tracking'">
-              <div v-if="!trackingData" class="text-center py-8">
+              <div v-if="!trackingData" class="py-8 text-center">
                 <button
                   @click="loadTracking"
-                  class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  class="px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
                 >
                   Load Tracking Information
                 </button>
               </div>
               <div v-else class="space-y-6">
                 <!-- Tracking Number -->
-                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                   <p class="text-sm text-gray-600 dark:text-gray-400">
                     Tracking Number
                   </p>
                   <p class="text-xl font-bold text-gray-900 dark:text-white">
                     {{ trackingData.trackingNumber }}
                   </p>
-                  <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     Carrier: {{ trackingData.carrier }}
                   </p>
                 </div>
@@ -259,23 +259,21 @@
                 <!-- Current Location -->
                 <div
                   v-if="trackingData.currentLocation"
-                  class="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
+                  class="p-4 bg-white border border-gray-200 rounded-lg dark:bg-gray-900 dark:border-gray-700"
                 >
-                  <h5 class="font-semibold text-gray-900 dark:text-white mb-2">
+                  <h5 class="mb-2 font-semibold text-gray-900 dark:text-white">
                     Current Location
                   </h5>
                   <p class="text-gray-600 dark:text-gray-400">
                     📍 {{ trackingData.currentLocation.address }}
                   </p>
-                  <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-500">
                     Last updated: {{ formatDateTime(trackingData.lastUpdate) }}
                   </p>
                 </div>
-
-                <!-- Estimated Delivery -->
                 <div class="grid grid-cols-2 gap-4">
                   <div
-                    class="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
+                    class="p-4 bg-white border border-gray-200 rounded-lg dark:bg-gray-900 dark:border-gray-700"
                   >
                     <p class="text-sm text-gray-600 dark:text-gray-400">
                       Estimated Delivery
@@ -287,7 +285,7 @@
                     </p>
                   </div>
                   <div
-                    class="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
+                    class="p-4 bg-white border border-gray-200 rounded-lg dark:bg-gray-900 dark:border-gray-700"
                   >
                     <p class="text-sm text-gray-600 dark:text-gray-400">
                       Progress
@@ -302,7 +300,7 @@
                         ></div>
                       </div>
                       <p
-                        class="text-sm font-semibold text-gray-900 dark:text-white mt-1"
+                        class="mt-1 text-sm font-semibold text-gray-900 dark:text-white"
                       >
                         {{ trackingData.progress || 0 }}%
                       </p>
@@ -314,13 +312,13 @@
 
             <!-- Shipping Tab -->
             <div v-else-if="activeTab === 'shipping'">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <h5 class="font-semibold text-gray-900 dark:text-white mb-3">
+                  <h5 class="mb-3 font-semibold text-gray-900 dark:text-white">
                     Shipping Address
                   </h5>
                   <div
-                    class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2"
+                    class="p-4 space-y-2 rounded-lg bg-gray-50 dark:bg-gray-900"
                   >
                     <p class="text-gray-900 dark:text-white">
                       {{ order.shippingInfo?.fullName }}
@@ -341,11 +339,11 @@
                   </div>
                 </div>
                 <div>
-                  <h5 class="font-semibold text-gray-900 dark:text-white mb-3">
+                  <h5 class="mb-3 font-semibold text-gray-900 dark:text-white">
                     Payment Information
                   </h5>
                   <div
-                    class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-2"
+                    class="p-4 space-y-2 rounded-lg bg-gray-50 dark:bg-gray-900"
                   >
                     <div class="flex justify-between">
                       <span class="text-gray-600 dark:text-gray-400"
@@ -386,17 +384,17 @@
                 <div
                   v-for="note in order.adminNotes || []"
                   :key="note._id"
-                  class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border-l-4 border-yellow-400"
+                  class="p-4 border-l-4 border-yellow-400 rounded-lg bg-yellow-50 dark:bg-yellow-900/20"
                 >
                   <p class="text-gray-900 dark:text-white">{{ note.note }}</p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     By {{ note.admin?.name }} •
                     {{ formatDateTime(note.createdAt) }}
                   </p>
                 </div>
                 <div
                   v-if="!order.adminNotes || order.adminNotes.length === 0"
-                  class="text-center py-8 text-gray-500 dark:text-gray-400"
+                  class="py-8 text-center text-gray-500 dark:text-gray-400"
                 >
                   No admin notes yet
                 </div>
@@ -407,12 +405,12 @@
                     v-model="newNote"
                     rows="3"
                     placeholder="Add admin note..."
-                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg dark:border-gray-600 focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   ></textarea>
                   <button
                     @click="addNote"
                     :disabled="!newNote.trim()"
-                    class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="px-4 py-2 mt-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Add Note
                   </button>
@@ -424,12 +422,12 @@
 
         <!-- Footer Actions -->
         <div
-          class="bg-gray-50 dark:bg-gray-900 px-6 py-4 flex justify-between items-center border-t border-gray-200 dark:border-gray-700"
+          class="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
         >
           <div class="flex gap-3">
             <select
               v-model="selectedStatus"
-              class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+              class="px-4 py-2 border border-gray-300 rounded-lg dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="">Change Status</option>
               <option value="confirmed">Confirmed</option>
@@ -441,7 +439,7 @@
             <button
               @click="updateStatus"
               :disabled="!selectedStatus"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Update Status
             </button>
@@ -450,13 +448,13 @@
             <button
               v-if="['pending', 'confirmed'].includes(order.orderStatus)"
               @click="cancelOrder"
-              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700"
             >
               Cancel Order
             </button>
             <button
               @click="$emit('close')"
-              class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+              class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
             >
               Close
             </button>
@@ -595,6 +593,35 @@ export default {
         hour: "2-digit",
         minute: "2-digit",
       });
+    },
+
+    getItemName(item) {
+      return (
+        item.name || item.product?.name || item.bundle?.name || "Unknown Item"
+      );
+    },
+
+    getItemImage(item) {
+      // First check if image is stored directly in orderItem
+      if (item.image) return item.image;
+
+      // Then check product.image (array)
+      if (
+        item.product?.image &&
+        Array.isArray(item.product.image) &&
+        item.product.image.length > 0
+      ) {
+        return item.product.image[0].url;
+      }
+
+      // Then check bundle.image
+      if (item.bundle?.image) {
+        return Array.isArray(item.bundle.image)
+          ? item.bundle.image[0]?.url
+          : item.bundle.image.url;
+      }
+
+      return "/placeholder.png";
     },
 
     formatStatus(status) {

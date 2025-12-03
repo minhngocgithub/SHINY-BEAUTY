@@ -1,11 +1,15 @@
 <script setup>
-import { ref, computed, markRaw } from "vue";
+import { ref, computed, markRaw, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../store/auth.store";
+import { useAdminStore } from "../../store/admin/admin.store";
+import { useAdminSocketStore } from "../../store/admin/adminSocket.store";
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const adminStore = useAdminStore();
+const socketStore = useAdminSocketStore();
 
 // Reactive state
 const sidebarOpen = ref(true);
@@ -71,10 +75,77 @@ const logout = () => {
   authStore.logout();
   router.push("/login");
 };
+
+// Lifecycle hooks for real-time connection
+onMounted(async () => {
+  console.log("🚀 [AdminDashboard] Component mounted");
+  await adminStore.fetchDashboardStats();
+
+  // Connect to Socket.IO if not already connected
+  const token = localStorage.getItem("accessToken");
+
+  if (!token) {
+    console.warn(
+      "⚠️ [AdminDashboard] No access token found. User needs to login."
+    );
+    return;
+  }
+
+  console.log(
+    "🔑 [AdminDashboard] Token found:",
+    token.substring(0, 20) + "..."
+  );
+
+  if (token && !socketStore.connected) {
+    console.log("🔌 [AdminDashboard] Connecting to admin socket...");
+    socketStore.connectAdminSocket(token);
+
+    // Wait a bit for connection to establish, then subscribe
+    setTimeout(() => {
+      if (socketStore.connected) {
+        console.log(
+          "✅ [AdminDashboard] Socket connected, subscribing to updates..."
+        );
+        socketStore.subscribeToDashboard(5000); // Update every 5 seconds
+      }
+    }, 1000);
+  } else if (socketStore.connected && !socketStore.dashboardSubscribed) {
+    // Already connected, just subscribe
+    console.log("📊 [AdminDashboard] Subscribing to dashboard updates...");
+    socketStore.subscribeToDashboard(5000);
+  }
+});
+
+onUnmounted(() => {
+  console.log("👋 [AdminDashboard] Component unmounting, unsubscribing...");
+
+  // Unsubscribe from dashboard updates when leaving page
+  if (socketStore.dashboardSubscribed) {
+    socketStore.unsubscribeFromDashboard();
+  }
+});
 </script>
 
 <template>
   <div class="flex h-screen bg-gray-100 dark:bg-gray-900">
+    <!-- Real-time Connection Status Banner -->
+    <div
+      v-if="!socketStore.connected"
+      class="fixed top-0 left-0 right-0 z-50 px-4 py-2 text-sm font-medium text-center text-white bg-yellow-600"
+    >
+      ⚠️ Disconnected from real-time updates. Reconnecting...
+    </div>
+
+    <div
+      v-else-if="socketStore.connected && socketStore.dashboardSubscribed"
+      class="fixed top-0 right-0 z-50 px-3 py-1 m-2 text-xs font-medium text-green-800 bg-green-100 border border-green-300 rounded-full"
+    >
+      <span
+        class="inline-block w-2 h-2 mr-1 bg-green-500 rounded-full animate-pulse"
+      ></span>
+      Live
+    </div>
+
     <!-- Sidebar -->
     <aside
       class="flex flex-col w-64 transition-colors bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700"

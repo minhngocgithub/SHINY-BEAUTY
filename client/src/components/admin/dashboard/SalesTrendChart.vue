@@ -145,7 +145,6 @@ onMounted(() => {
   createChart();
 });
 
-// Watch for data changes
 watch(
   () => props.chartData,
   () => {

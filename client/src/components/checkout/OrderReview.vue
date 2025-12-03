@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <!-- Shipping Address -->
     <div
-      class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6"
+      class="p-6 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700"
     >
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-gray-900 dark:text-white">
@@ -10,12 +10,12 @@
         </h3>
         <button
           @click="$emit('edit', 'shipping')"
-          class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          class="text-sm bg-gray-800 hover:text-gray-900 dark:hover:text-[#FFFF]"
         >
           Edit
         </button>
       </div>
-      <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+      <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
         <p class="font-medium text-gray-900 dark:text-white">
           {{ shippingAddress.fullName }}
         </p>
@@ -33,7 +33,7 @@
 
     <!-- Payment Method -->
     <div
-      class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6"
+      class="p-6 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700"
     >
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-semibold text-gray-900 dark:text-white">
@@ -41,7 +41,7 @@
         </h3>
         <button
           @click="$emit('edit', 'payment')"
-          class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          class="text-sm bg-gray-800 hover:text-gray-900 dark:hover:text-[#FFFF]"
         >
           Edit
         </button>
@@ -53,9 +53,9 @@
 
     <!-- Order Items -->
     <div
-      class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6"
+      class="p-6 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700"
     >
-      <h3 class="font-semibold text-gray-900 dark:text-white mb-4">
+      <h3 class="mb-4 font-semibold text-gray-900 dark:text-white">
         Order Items
       </h3>
       <div class="space-y-4">
@@ -67,11 +67,11 @@
           <img
             :src="getItemImage(item)"
             :alt="getItemName(item)"
-            class="w-16 h-16 object-cover rounded"
+            class="object-cover w-16 h-16 rounded"
           />
           <div class="flex-1 min-w-0">
             <h4
-              class="text-sm font-medium text-gray-900 dark:text-white truncate"
+              class="text-sm font-medium text-gray-900 truncate dark:text-white"
             >
               {{ getItemName(item) }}
             </h4>
@@ -88,22 +88,25 @@
 
     <!-- Order Summary -->
     <div
-      class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6"
+      class="p-6 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700"
     >
-      <h3 class="font-semibold text-gray-900 dark:text-white mb-4">
+      <h3 class="mb-4 font-semibold text-gray-900 dark:text-white">
         Order Summary
       </h3>
       <div class="space-y-2 text-sm">
         <div class="flex justify-between">
           <span class="text-gray-600 dark:text-gray-400">Subtotal</span>
           <span class="text-gray-900 dark:text-white">{{
-            formatCurrency(summary.subtotal)
+            formatCurrency(summary?.subtotal || 0)
           }}</span>
         </div>
-        <div v-if="summary.totalDiscount > 0" class="flex justify-between">
+        <div
+          v-if="(summary?.totalDiscount || 0) > 0"
+          class="flex justify-between"
+        >
           <span class="text-gray-600 dark:text-gray-400">Discount</span>
           <span class="text-red-600 dark:text-red-400"
-            >-{{ formatCurrency(summary.totalDiscount) }}</span
+            >-{{ formatCurrency(summary?.totalDiscount || 0) }}</span
           >
         </div>
         <div class="flex justify-between">
@@ -111,7 +114,7 @@
           <div class="text-right">
             <span
               v-if="shippingFee === 0"
-              class="text-green-600 dark:text-green-400 font-semibold"
+              class="font-semibold text-green-600 dark:text-green-400"
             >
               FREE
             </span>
@@ -141,7 +144,7 @@
           class="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700"
         >
           <span class="font-semibold text-gray-900 dark:text-white">Total</span>
-          <span class="font-bold text-lg text-gray-900 dark:text-white">{{
+          <span class="text-lg font-bold text-gray-900 dark:text-white">{{
             formatCurrency(total)
           }}</span>
         </div>
@@ -154,15 +157,15 @@
         v-model="termsAccepted"
         type="checkbox"
         id="terms"
-        class="mt-1 w-4 h-4 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-gray-900 dark:focus:ring-white"
+        class="w-4 h-4 mt-1 border-gray-300 rounded dark:border-gray-600 focus:ring-2 focus:ring-gray-900 dark:focus:ring-white"
       />
       <label for="terms" class="text-sm text-gray-600 dark:text-gray-400">
         I agree to the
-        <a href="#" class="text-gray-900 dark:text-white underline"
+        <a href="#" class="text-gray-900 underline dark:text-white"
           >Terms & Conditions</a
         >
         and
-        <a href="#" class="text-gray-900 dark:text-white underline"
+        <a href="#" class="text-gray-900 underline dark:text-white"
           >Privacy Policy</a
         >
       </label>
@@ -242,8 +245,22 @@ const getItemName = (item) => {
 };
 
 const getItemImage = (item) => {
-  if (item.product?.images?.[0]?.url) return item.product.images[0].url;
-  if (item.bundle?.image?.url) return item.bundle.image.url;
+  // Check product.image (array)
+  if (
+    item.product?.image &&
+    Array.isArray(item.product.image) &&
+    item.product.image.length > 0
+  ) {
+    return item.product.image[0].url;
+  }
+
+  // Check bundle.image
+  if (item.bundle?.image) {
+    return Array.isArray(item.bundle.image)
+      ? item.bundle.image[0]?.url
+      : item.bundle.image.url;
+  }
+
   return "/placeholder.jpg";
 };
 

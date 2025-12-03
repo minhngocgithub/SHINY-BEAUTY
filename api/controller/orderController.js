@@ -86,15 +86,15 @@ const getOrderById = async (req, res) => {
     const order = await Order.findById(req.params.id)
       .populate('user', 'name email')
       .populate('orderItems.product', 'name price image brand')
-      .populate('orderItems.bundle', 'name bundlePrice image')
-      .populate('orderItems.bundleItems.product', 'name price image');
+      .populate('orderItems.bundle', 'name bundlePrice image items');
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
     res.status(200).json({ success: true, order });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    console.error('Get order by ID error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error', error: err.message });
   }
 }
 
@@ -329,6 +329,26 @@ const createOrder = async (req, res) => {
 
       // Notify admin of new order
       await NotificationService.notifyAdminNewOrder(io, createdOrder)
+
+      // Emit to admin namespace - new order event
+      io.of('/admin').to('admin:orders').emit('admin:order:new', {
+        success: true,
+        data: createdOrder,
+        timestamp: new Date()
+      });
+
+      // Notify admin dashboard - real-time update
+      const AdminDashboardService = require('../services/adminDashboard.service');
+      await AdminDashboardService.invalidateCache();
+
+      const updatedStats = await AdminDashboardService.getDashboardStats(true);
+      io.of('/admin').to('admin:dashboard').emit('admin:dashboard:update', {
+        success: true,
+        data: updatedStats,
+        updateType: 'new_order',
+        trigger: 'order_created',
+        timestamp: new Date()
+      });
     }
 
     res.status(201).json(createdOrder)

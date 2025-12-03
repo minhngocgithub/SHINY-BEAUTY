@@ -44,6 +44,7 @@ export default {
         'float': 'float 3s ease-in-out infinite',
         'shimmer': 'shimmer 1.5s infinite',
         'pulse-slow': 'pulse 3s ease-in-out infinite',
+        'wiggle': 'wiggle 1s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -81,6 +82,11 @@ export default {
         shimmer: {
           '0%': { backgroundPosition: '-200px 0' },
           '100%': { backgroundPosition: 'calc(200px + 100%) 0' }
+        },
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(0deg)' },
+          '25%': { transform: 'rotate(-10deg)' },
+          '75%': { transform: 'rotate(10deg)' }
         }
       },
       transitionTimingFunction: {

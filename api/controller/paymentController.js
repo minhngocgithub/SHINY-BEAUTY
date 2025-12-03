@@ -141,11 +141,11 @@ const createOrderWithPayment = async (req, res) => {
     // Calculate pricing (USD)
     const taxPrice = itemsPrice * 0.1; // 10% VAT
     const loyaltyDiscount = loyaltyPointsUsed; // 1 point = $1 USD
-    
+
     // Calculate shipping with distance-based logic
     let shippingPrice = 0;
     let shippingReason = 'STANDARD_RATE';
-    
+
     // Priority 1: Subtotal threshold ($50+)
     if (itemsPrice >= 50) {
       shippingPrice = 0;
@@ -160,10 +160,10 @@ const createOrderWithPayment = async (req, res) => {
           false,
           false
         );
-        
+
         shippingPrice = shippingResult.fee;
         shippingReason = shippingResult.reason || 'DISTANCE_BASED';
-        
+
         // Apply COD surcharge
         if (isCOD && shippingPrice > 0) {
           shippingPrice += 1.5;
@@ -185,9 +185,9 @@ const createOrderWithPayment = async (req, res) => {
       shippingPrice = 5;
       shippingReason = 'STANDARD_RATE';
     }
-    
+
     console.log(`[PAYMENT] Shipping: $${shippingPrice} (${shippingReason}) for ${shippingAddress?.city || 'N/A'}`);
-    
+
     const totalPrice = itemsPrice + shippingPrice + taxPrice - couponDiscount - loyaltyDiscount;
 
     // Create order data
@@ -294,7 +294,7 @@ const handleMoMoPayment = async (orderData, req, res) => {
 
     // Create signature
     const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
-    
+
     const signature = crypto.createHmac('sha256', secretKey)
       .update(rawSignature)
       .digest('hex');
@@ -341,7 +341,7 @@ const handleMoMoPayment = async (orderData, req, res) => {
       });
     } else {
       await Order.findByIdAndDelete(order._id);
-      
+
       res.status(400).json({
         success: false,
         message: 'Failed to create MoMo payment',
@@ -365,9 +365,9 @@ const handleZaloPayment = async (orderData, req, res) => {
     const appId = process.env.ZALOPAY_APP_ID || 'test_app_id';
     const key1 = process.env.ZALOPAY_KEY1 || 'test_key1';
     const key2 = process.env.ZALOPAY_KEY2 || 'test_key2';
-    
+
     const appTransId = `${new Date().getFullYear()}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${new Date().getDate().toString().padStart(2, '0')}_${order._id}`;
-    
+
     const orderZalo = {
       app_id: appId,
       app_trans_id: appTransId,
@@ -418,7 +418,7 @@ const handleZaloPayment = async (orderData, req, res) => {
       });
     } else {
       await Order.findByIdAndDelete(order._id);
-      
+
       res.status(400).json({
         success: false,
         message: 'Failed to create ZaloPay payment',
@@ -489,7 +489,7 @@ const handleStripePayment = async (orderData, res) => {
 const handleMoMoWebhook = async (req, res) => {
   try {
     const { orderId, resultCode, message } = req.body;
-    
+
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -524,18 +524,18 @@ const handleMoMoWebhook = async (req, res) => {
 const handleZaloPayWebhook = async (req, res) => {
   try {
     const { data, mac } = req.body;
-    
+
     // Verify signature
     const key2 = process.env.ZALOPAY_KEY2 || 'test_key2';
     const computedMac = crypto.createHmac('sha256', key2).update(data).digest('hex');
-    
+
     if (mac !== computedMac) {
       return res.status(400).json({ return_code: -1, return_message: 'Invalid signature' });
     }
 
     const dataObj = JSON.parse(data);
     const orderId = dataObj.app_trans_id.split('_')[1];
-    
+
     const order = await Order.findById(orderId);
     if (!order) {
       return res.json({ return_code: 0, return_message: 'success' });
@@ -573,7 +573,7 @@ const handleStripeWebhook = async (req, res) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const orderId = session.metadata.orderId;
-    
+
     const order = await Order.findById(orderId);
     if (order) {
       order.isPaid = true;
@@ -597,10 +597,10 @@ const handleStripeWebhook = async (req, res) => {
 const verifyStripePayment = async (req, res) => {
   try {
     const { sessionId } = req.body;
-    
+
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     const orderId = session.metadata.orderId;
-    
+
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -616,15 +616,15 @@ const verifyStripePayment = async (req, res) => {
 
       await User.findByIdAndUpdate(order.user, { $set: { cartItems: [] } });
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         status: 'paid',
-        order 
+        order
       });
     } else {
-      res.json({ 
-        success: false, 
-        status: session.payment_status 
+      res.json({
+        success: false,
+        status: session.payment_status
       });
     }
 
@@ -655,7 +655,7 @@ const getPaymentMethods = async (req, res) => {
       {
         id: 'zalopay',
         name: 'ZaloPay',
-        icon: 'zalopay', 
+        icon: 'zalopay',
         description: 'Ví điện tử ZaloPay',
         enabled: true
       },
@@ -677,7 +677,7 @@ const getPaymentMethods = async (req, res) => {
 const getPaymentStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
-    
+
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -701,7 +701,7 @@ const getPaymentStatus = async (req, res) => {
 module.exports = {
   createOrderWithPayment,
   handleCODPayment,
-  handleMoMoPayment, 
+  handleMoMoPayment,
   handleZaloPayment,
   handleStripePayment,
   handleMoMoWebhook,

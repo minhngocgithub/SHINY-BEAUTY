@@ -88,12 +88,16 @@ class ShippingService {
      */
     static calculateShippingFee(city, hasFreeShipping = false, isExpress = false) {
         try {
+            // Get province info first to determine zone
+            const provinceInfo = this.PROVINCES[city] || null
+            const baseZone = provinceInfo?.zone || "local"
+
             // Sale Program Free Shipping overrides all
             if (hasFreeShipping) {
                 return {
                     fee: 0,
-                    zone: "free_shipping_program",
-                    distance: 0,
+                    zone: baseZone, // Use actual zone instead of "free_shipping_program"
+                    distance: provinceInfo?.distance || 0,
                     isFree: true,
                     currency: "USD",
                     reason: "Sale Program Benefit"

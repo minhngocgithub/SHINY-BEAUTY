@@ -23,7 +23,7 @@ export const useSaleProgramStore = defineStore('saleProgram', () => {
   const currentProgram = ref(null)
   const loading = ref(false)
   const error = ref(null)
-  
+
   // Computed
   const flashSales = computed(() =>
     activePrograms.value.filter(program => program.type === 'flash_sale')
@@ -106,11 +106,6 @@ export const useSaleProgramStore = defineStore('saleProgram', () => {
             })
 
             if (categoryMatch) {
-              console.log('✅ Found by category:', {
-                programTitle: program.title,
-                categoryName: category.name || categoryIdStr,
-                discount: program.benefits?.discountPercentage + '%'
-              })
               return program
             }
           }

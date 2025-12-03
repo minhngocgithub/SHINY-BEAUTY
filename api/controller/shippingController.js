@@ -25,7 +25,7 @@ const calculateShippingFee = async (req, res) => {
         )
 
         const deliveryTime = ShippingService.calculateDeliveryTime(city, new Date(), isExpress)
-        
+
         // Format delivery estimate in Vietnamese
         const deliveryEstimate = deliveryTime.range.replace('days', 'ngày').replace('day', 'ngày')
 

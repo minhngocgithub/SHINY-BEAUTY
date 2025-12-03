@@ -215,24 +215,30 @@ const orderStore = useOrderStore();
 const userStore = useUserStore();
 const { cartItems, cartSummary, isEmpty } = storeToRefs(cartStore);
 
-const currentStep = ref(1);
-const selectedAddressId = ref(null);
-const shippingAddress = ref({
-  fullName: "",
-  phone: "",
-  address: "",
-  city: "",
-  district: "",
-  ward: "",
-  postalCode: "00000", // Default postal code for Vietnam
-  country: "VN", // Default country
-  note: "",
-});
-const paymentMethod = ref("cod");
-const shippingValid = ref(false);
+// Restore from sessionStorage or use defaults
+const savedCheckoutState = sessionStorage.getItem("checkoutState");
+const initialState = savedCheckoutState ? JSON.parse(savedCheckoutState) : null;
+
+const currentStep = ref(initialState?.currentStep || 1);
+const selectedAddressId = ref(initialState?.selectedAddressId || null);
+const shippingAddress = ref(
+  initialState?.shippingAddress || {
+    fullName: "",
+    phone: "",
+    address: "",
+    city: "",
+    district: "",
+    ward: "",
+    postalCode: "00000",
+    country: "VN",
+    note: "",
+  }
+);
+const paymentMethod = ref(initialState?.paymentMethod || "cod");
+const shippingValid = ref(initialState?.shippingValid || false);
 const loading = ref(false);
 const error = ref(null);
-const calculatedShipping = ref(null); // Store calculated shipping from API
+const calculatedShipping = ref(initialState?.calculatedShipping || null);
 
 const shippingFormRef = ref(null);
 const orderReviewRef = ref(null);
@@ -252,6 +258,30 @@ const canProceed = computed(() => {
 const canPlaceOrder = computed(() => {
   return orderReviewRef.value?.termsAccepted;
 });
+
+// Save checkout state to sessionStorage whenever it changes
+watch(
+  [
+    currentStep,
+    selectedAddressId,
+    shippingAddress,
+    paymentMethod,
+    shippingValid,
+    calculatedShipping,
+  ],
+  () => {
+    const checkoutState = {
+      currentStep: currentStep.value,
+      selectedAddressId: selectedAddressId.value,
+      shippingAddress: shippingAddress.value,
+      paymentMethod: paymentMethod.value,
+      shippingValid: shippingValid.value,
+      calculatedShipping: calculatedShipping.value,
+    };
+    sessionStorage.setItem("checkoutState", JSON.stringify(checkoutState));
+  },
+  { deep: true }
+);
 
 const nextStep = () => {
   if (currentStep.value === 1 && shippingFormRef.value) {
@@ -276,23 +306,21 @@ const handleEdit = (section) => {
 
 const handleAddressSelect = () => {
   if (!selectedAddressId.value) {
-    // Reset form if "Enter new address" is selected
-      shippingAddress.value = {
-        fullName: "",
-        phone: "",
-        address: "",
-        city: "",
-        district: "",
-        ward: "",
-        postalCode: "00000",
-        country: "VN",
-        note: "",
-      };
-    calculatedShipping.value = null; // Reset shipping calculation
+    shippingAddress.value = {
+      fullName: "",
+      phone: "",
+      address: "",
+      city: "",
+      district: "",
+      ward: "",
+      postalCode: "00000",
+      country: "VN",
+      note: "",
+    };
+    calculatedShipping.value = null;
     return;
   }
 
-  // Find selected address and populate form
   const selectedAddress = userStore.addresses.find(
     (addr) => addr._id === selectedAddressId.value
   );
@@ -310,41 +338,39 @@ const handleAddressSelect = () => {
       note: selectedAddress.note || "",
     };
 
-    // Trigger validation after filling
     if (shippingFormRef.value) {
       shippingFormRef.value.validate();
     }
   }
 };
 
-// Watch for city changes and calculate shipping fee
 watch(
   () => shippingAddress.value.city,
   async (newCity) => {
-    if (!newCity || newCity.trim() === '') {
+    if (!newCity || newCity.trim() === "") {
       calculatedShipping.value = null;
       return;
     }
 
     try {
-      // Check if cart has free shipping from Sale Program
-      const hasFreeShipping = cartSummary.value?.cartBenefits?.freeShipping === true;
-      
-      // Calculate shipping fee from API
-      const result = await calculateShippingFee(newCity, hasFreeShipping, false);
-      
+      const hasFreeShipping =
+        cartSummary.value?.cartBenefits?.freeShipping === true;
+
+      const result = await calculateShippingFee(
+        newCity,
+        hasFreeShipping,
+        false
+      );
+
       calculatedShipping.value = {
         fee: result.fee,
-        reason: result.isFree ? 'FREE_SHIPPING_ZONE' : 'DISTANCE_BASED',
+        reason: result.isFree ? "FREE_SHIPPING_ZONE" : "DISTANCE_BASED",
         zone: result.zone,
         distance: result.distance,
-        deliveryEstimate: result.deliveryEstimate
+        deliveryEstimate: result.deliveryEstimate,
       };
-      
-      console.log('Shipping calculated:', calculatedShipping.value);
     } catch (error) {
-      console.error('Failed to calculate shipping:', error);
-      // Keep previous value or null on error
+      console.error("Failed to calculate shipping:", error);
     }
   }
 );
@@ -353,33 +379,33 @@ const placeOrder = async () => {
   try {
     loading.value = true;
     error.value = null;
-
-    // Validate shipping form one more time before submission
     if (shippingFormRef.value && !shippingFormRef.value.validate()) {
-      error.value = "Please fill in all required shipping information correctly.";
+      error.value =
+        "Please fill in all required shipping information correctly.";
       return;
     }
-
-    // Prepare order data according to backend requirements
     const orderData = {
       orderItems: cartItems.value.map((item) => {
         const isProduct = item.itemType === "product" || item.product;
         const itemData = isProduct ? item.product : item.bundle;
-        
+
         if (!itemData) {
           throw new Error(`Invalid cart item: missing product/bundle data`);
         }
-
-        // Get product/bundle name and image
         const name = itemData.name || "Unknown Item";
-        const image = itemData.images?.[0]?.url || 
-                      itemData.image?.url || 
-                      itemData.image || 
-                      "/placeholder.jpg";
-        
-        // Get prices
-        const price = item.finalPrice || itemData.salePrice || itemData.price || 0;
-        const originalPrice = item.originalPrice || itemData.price || itemData.originalPrice || price;
+        const image =
+          itemData.image &&
+          Array.isArray(itemData.image) &&
+          itemData.image.length > 0
+            ? itemData.image[0].url
+            : "/placeholder.jpg";
+        const price =
+          item.finalPrice || itemData.salePrice || itemData.price || 0;
+        const originalPrice =
+          item.originalPrice ||
+          itemData.price ||
+          itemData.originalPrice ||
+          price;
 
         return {
           name,
@@ -387,8 +413,8 @@ const placeOrder = async () => {
           image,
           price,
           originalPrice,
-          product: isProduct ? item.product?._id : null,
-          bundle: !isProduct ? item.bundle?._id : null,
+          product: isProduct ? item.product?._id || itemData._id : undefined,
+          bundle: !isProduct ? item.bundle?._id || itemData._id : undefined,
         };
       }),
       shippingAddress: {
@@ -397,32 +423,33 @@ const placeOrder = async () => {
         city: shippingAddress.value.city || "",
         district: shippingAddress.value.district || "",
         ward: shippingAddress.value.ward || "",
-        postalCode: shippingAddress.value.postalCode || "00000", // Default postal code for Vietnam
+        postalCode: shippingAddress.value.postalCode || "00000",
         country: shippingAddress.value.country || "VN",
         phone: shippingAddress.value.phone || "",
       },
-      paymentMethod: paymentMethod.value.toUpperCase(), // Backend expects uppercase: COD, VNPAY, etc.
+      paymentMethod: paymentMethod.value.toUpperCase(),
       appliedPrograms: cartSummary.value?.applicablePrograms || [],
       note: shippingAddress.value.note || "",
     };
-
-    console.log("📦 Order payload:", JSON.stringify(orderData, null, 2));
 
     const order = await orderStore.createOrder(orderData);
 
     // Clear cart after successful order
     await cartStore.clearCart();
 
+    // Clear checkout state from sessionStorage
+    sessionStorage.removeItem("checkoutState");
+
     // Redirect to order detail page
     router.push(`/orders/${order._id}`);
   } catch (err) {
-    const errorMessage = err.response?.data?.message || 
-                         err.message || 
-                         "Failed to place order. Please try again.";
+    const errorMessage =
+      err.response?.data?.message ||
+      err.message ||
+      "Failed to place order. Please try again.";
     error.value = errorMessage;
-    console.error("❌ Place order error:", err);
-    
-    // Show detailed error for debugging
+    console.error("Place order error:", err);
+
     if (err.response?.data) {
       console.error("Backend error details:", err.response.data);
     }
@@ -439,11 +466,8 @@ onMounted(async () => {
     return;
   }
 
-  // Fetch user's saved addresses
   try {
     await userStore.fetchAddresses();
-
-    // Auto-select default address if exists
     const defaultAddress = userStore.addresses.find((addr) => addr.isDefault);
     if (defaultAddress) {
       selectedAddressId.value = defaultAddress._id;

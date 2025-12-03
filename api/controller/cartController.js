@@ -108,7 +108,7 @@ const addToCard = async (req, res) => {
         }
         await user.save()
         const updatedUser = await User.findById(userId)
-            .populate('cartItems.product', 'name price images brand countInstock currentPrice isSaleActive discountPercentage')
+            .populate('cartItems.product', 'name price image brand countInstock currentPrice isSaleActive discountPercentage')
             .populate('cartItems.bundle', 'name bundlePrice image discountPercentage');
 
         // 🔍 DEBUG: Log final cart state
@@ -134,7 +134,7 @@ const addToCard = async (req, res) => {
 const getCart = async (req, res) => {
     try {
         const user = await User.findById(req.user._id)
-            .populate('cartItems.product', 'name price images brand countInstock currentPrice isSaleActive discountPercentage salePrice')
+            .populate('cartItems.product', 'name price image brand countInstock currentPrice isSaleActive discountPercentage salePrice')
             .populate('cartItems.bundle', 'name bundlePrice image discountPercentage originalPrice')
 
         if (!user) {
@@ -253,7 +253,7 @@ const updateCartItem = async (req, res) => {
 
         // Populate cart items
         await user.populate([
-            { path: 'cartItems.product', select: 'name price images brand countInstock currentPrice isSaleActive discountPercentage salePrice' },
+            { path: 'cartItems.product', select: 'name price image brand countInstock currentPrice isSaleActive discountPercentage salePrice' },
             { path: 'cartItems.bundle', select: 'name bundlePrice image discountPercentage originalPrice' }
         ]);
 
@@ -338,7 +338,7 @@ const removeFromCart = async (req, res) => {
 
         // Populate cart items
         await user.populate([
-            { path: 'cartItems.product', select: 'name price images brand countInstock currentPrice isSaleActive discountPercentage salePrice' },
+            { path: 'cartItems.product', select: 'name price image brand countInstock currentPrice isSaleActive discountPercentage salePrice' },
             { path: 'cartItems.bundle', select: 'name bundlePrice image discountPercentage originalPrice' }
         ]);
 

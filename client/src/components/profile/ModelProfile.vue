@@ -68,10 +68,7 @@
           <ul class="space-y-2">
             <li v-for="item in menuItems" :key="item.id">
               <button
-                @click="
-                  activeTab = item.id;
-                  $emit('close-mobile-menu');
-                "
+                @click="changeTab(item.id)"
                 :class="[
                   'w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
                   activeTab === item.id
@@ -127,6 +124,7 @@
             @update-filter="selectedOrderFilter = $event"
             @view-order="viewOrderDetail"
             @cancel-order="cancelOrder"
+            @track-order="trackOrder"
           />
         </div>
 
@@ -203,8 +201,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../store/auth.store";
 import { useUserStore } from "../../store/user.store";
 import { useOrderStore } from "../../store/order.store";
@@ -238,14 +236,15 @@ const emit = defineEmits([
 ]);
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const userStore = useUserStore();
 const orderStore = useOrderStore();
 const wishlistStore = useWishlistStore();
 const reviewStore = useReviewStore();
 
-// State
-const activeTab = ref("profile");
+// State - Initialize from URL query param or default to 'profile'
+const activeTab = ref(route.query.tab || "profile");
 const isEditing = ref(false);
 const selectedOrderFilter = ref("all");
 const userStats = ref(null);
@@ -277,6 +276,22 @@ const menuItems = computed(() => [
 ]);
 
 // Methods
+const changeTab = (tabId) => {
+  activeTab.value = tabId;
+  router.push({ query: { tab: tabId } });
+  emit("close-mobile-menu");
+};
+
+// Watch for URL query changes (browser back/forward)
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    if (newTab && newTab !== activeTab.value) {
+      activeTab.value = newTab;
+    }
+  }
+);
+
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -341,6 +356,10 @@ const handleAvatarLoadingState = (loading) => {
 
 const viewOrderDetail = (order) => {
   router.push(`/orders/${order._id}`);
+};
+
+const trackOrder = (orderId) => {
+  router.push(`/orders/${orderId}/track`);
 };
 
 const cancelOrder = async (orderId) => {

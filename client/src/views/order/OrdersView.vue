@@ -1,40 +1,63 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div
+    class="min-h-screen py-8 bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50"
+  >
+    <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
+      <button
+          @click="$router.push('/account/profile')"
+          class="flex items-center gap-2 mb-6 text-gray-700 transition-all hover:text-rose-600 hover:translate-x-[-4px] bg-[#FFFF]"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          <span class="font-medium">Back to Profile</span>
+        </button>
       <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-          My Orders
-        </h1>
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Track and manage your orders
-        </p>
+      <div class="relative mb-8 overflow-hidden bg-white shadow-lg rounded-2xl">
+        <div
+          class="absolute top-0 right-0 w-64 h-64 rounded-full opacity-50 bg-gradient-to-br from-rose-100 to-pink-100 blur-3xl -z-0"
+        ></div>       
+        <div class="relative z-10 p-6">
+          <h1
+            class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-pink-600"
+          >
+            My Orders
+          </h1>
+          <p class="mt-2 text-sm text-gray-600">Track and manage your orders</p>
+        </div>
       </div>
 
       <!-- Filter Tabs -->
-      <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
-        <nav class="flex space-x-8 overflow-x-auto">
+      <div class="mb-6 overflow-hidden bg-white shadow-lg rounded-2xl">
+        <nav class="flex p-2 space-x-2 overflow-x-auto">
           <button
             v-for="tab in tabs"
             :key="tab.value"
             @click="activeTab = tab.value"
-            class="pb-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors"
+            class="px-6 py-3 text-sm font-semibold transition-all rounded-xl whitespace-nowrap"
             :class="{
-              'border-gray-900 dark:border-white text-gray-900 dark:text-white':
+              'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-md scale-105':
                 activeTab === tab.value,
-              'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300':
-                activeTab !== tab.value,
+              'text-gray-600 hover:bg-rose-50': activeTab !== tab.value,
             }"
           >
             {{ tab.label }}
             <span
               v-if="getTabCount(tab.value) > 0"
-              class="ml-2 px-2 py-0.5 rounded-full text-xs"
+              class="ml-2 px-2 py-0.5 rounded-full text-xs font-bold"
               :class="{
-                'bg-gray-900 dark:bg-white text-white dark:text-gray-900':
-                  activeTab === tab.value,
-                'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400':
-                  activeTab !== tab.value,
+                'bg-white/20 text-white': activeTab === tab.value,
+                'bg-rose-100 text-rose-700': activeTab !== tab.value,
               }"
             >
               {{ getTabCount(tab.value) }}
@@ -48,18 +71,16 @@
         v-if="loading && orders.length === 0"
         class="flex justify-center py-16"
       >
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white"
-        ></div>
+        <Loading />
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="filteredOrders.length === 0" class="text-center py-16">
+      <div v-else-if="filteredOrders.length === 0" class="py-16 text-center">
         <div
-          class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6"
+          class="flex items-center justify-center w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-rose-100 to-pink-100"
         >
           <svg
-            class="w-12 h-12 text-gray-400 dark:text-gray-600"
+            class="w-12 h-12 text-rose-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -72,10 +93,12 @@
             />
           </svg>
         </div>
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+        <h2
+          class="mb-2 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-pink-600"
+        >
           No orders found
         </h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-8">
+        <p class="mb-8 text-gray-600">
           {{
             activeTab === "all"
               ? "You haven't placed any orders yet"
@@ -84,14 +107,14 @@
         </p>
         <button
           @click="$router.push('/shop')"
-          class="px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors"
+          class="px-8 py-3 font-semibold text-white transition-all shadow-md bg-gradient-to-r from-rose-500 to-pink-600 rounded-xl hover:from-rose-600 hover:to-pink-700 hover:shadow-lg hover:scale-105"
         >
           Start Shopping
         </button>
       </div>
 
       <!-- Orders List -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-else class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <OrderCard
           v-for="order in filteredOrders"
           :key="order._id"
@@ -109,7 +132,7 @@ import { useRouter } from "vue-router";
 import { useOrderStore } from "../../store/order.store";
 import { storeToRefs } from "pinia";
 import OrderCard from "../../components/order/OrderCard.vue";
-
+import Loading from "../../components/Loading.vue";
 const router = useRouter();
 const orderStore = useOrderStore();
 const { orders, loading } = storeToRefs(orderStore);
@@ -124,7 +147,18 @@ const tabs = [
   { label: "Delivered", value: "delivered" },
   { label: "Cancelled", value: "cancelled" },
 ];
-
+const getStatusClass = (status) => {
+  const classes = {
+    pending: "bg-yellow-100 text-yellow-800 border border-yellow-200",
+    confirmed: "bg-blue-100 text-blue-800 border border-blue-200",
+    paid: "bg-green-100 text-green-800 border border-green-200",
+    processing: "bg-purple-100 text-purple-800 border border-purple-200",
+    shipped: "bg-indigo-100 text-indigo-800 border border-indigo-200",
+    delivered: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+    cancelled: "bg-red-100 text-red-800 border border-red-200",
+  };
+  return classes[status] || "bg-gray-100 text-gray-700 border border-gray-200";
+};
 const filteredOrders = computed(() => {
   if (activeTab.value === "all") return orders.value;
 

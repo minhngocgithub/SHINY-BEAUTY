@@ -12,7 +12,12 @@ export const createOrderApi = async (data) => {
 };
 
 export const getMyOrdersApi = async (params = {}) => {
-  return await axiosApiInstance.get(`${BASE_ORDER_API}/myOrders`, { params });
+  return await axiosApiInstance.get(`${BASE_ORDER_API}/myOrders`, {
+    params: {
+      ...params,
+      populate: 'orderItems.productId'
+    }
+  });
 };
 
 export const getOrderDetailApi = async (orderId) => {

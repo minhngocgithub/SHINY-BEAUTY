@@ -3,7 +3,6 @@ import { createRouter, createWebHistory } from "vue-router"
 // Layouts
 import defaultLayout from "../components/layouts/defaultLayout.vue"
 import dashboardLayout from "../components/layouts/dashboardLayout.vue"
-import emptyLayout from "../components/layouts/emptyLayout.vue"
 
 // Views - Home & Main
 import HomeView from "../views/HomeView.vue"
@@ -34,14 +33,10 @@ import CheckoutPayment from '../views/checkout/CheckoutPayment.vue'
 
 // Views - Admin
 import AdminView from "../views/admin/AdminView.vue"
-import ProductManage from "../components/admin/ProductManage.vue"
-import CreateProduct from "../components/admin/CreateProduct.vue"
-import UpdateProduct from "../components/admin/UpdateProduct.vue"
 
 // Views - User Profile
 import UserProfile from "../views/auth/UserProfile.vue"
 import SettingTab from "../components/profile/SettingTab.vue"
-import AddressTab from "../components/profile/AddressTab.vue"
 import ShopProfile from "../components/profile/ShopProfile.vue"
 
 import Test from "../components/Test.vue"
@@ -316,6 +311,18 @@ const routes = [
           requiresAuth: true,
         },
       },
+      {
+        path: ":id/track",
+        name: "OrderTracking",
+        component: () => import("../views/order/OrderTrackingView.vue"),
+        meta: {
+          layout: defaultLayout,
+          title: "Track Order - SHINY BEAUTY",
+          description: "Real-time order tracking with live map and shipper location",
+          breadcrumb: "Track Order",
+          requiresAuth: true,
+        },
+      },
     ],
   },
 
@@ -381,24 +388,7 @@ const routes = [
           description: "Manage all products, stock, and pricing",
         },
       },
-      {
-        path: "products/create",
-        name: "CreateProduct",
-        component: CreateProduct,
-        meta: {
-          title: "Create Product - SHINY BEAUTY",
-          description: "Add a new product to your store",
-        },
-      },
-      {
-        path: "products/:id/edit",
-        name: "UpdateProduct",
-        component: UpdateProduct,
-        meta: {
-          title: "Edit Product - SHINY BEAUTY",
-          description: "Edit product details",
-        },
-      },
+
       {
         path: "orders",
         name: "AdminOrders",
@@ -442,6 +432,87 @@ const routes = [
         meta: {
           title: "Reviews Management - SHINY BEAUTY",
           description: "Moderate product reviews and ratings",
+        },
+      },
+      {
+        path: "campaigns",
+        name: "AdminCampaigns",
+        component: () => import("../views/admin/AdminCampaignsView.vue"),
+        meta: {
+          title: "Campaign Management - SHINY BEAUTY",
+          description: "Manage email campaigns and marketing",
+        },
+      },
+      {
+        path: "coupons",
+        name: "AdminCoupons",
+        component: () => import("../views/admin/AdminCouponsView.vue"),
+        meta: {
+          title: "Coupon Management - SHINY BEAUTY",
+          description: "Manage discount coupons and promotions",
+        },
+      },
+      {
+        path: "sale-programs",
+        name: "AdminSalePrograms",
+        component: () => import("../views/admin/AdminSaleProgramsView.vue"),
+        meta: {
+          title: "Sale Programs Management - SHINY BEAUTY",
+          description: "Manage sale programs and flash sales",
+        },
+      },
+      {
+        path: "loyalty",
+        name: "AdminLoyalty",
+        component: () => import("../views/admin/AdminLoyaltyView.vue"),
+        meta: {
+          title: "Loyalty Program - SHINY BEAUTY",
+          description: "Manage customer loyalty rewards",
+        },
+      },
+      {
+        path: "inventory",
+        name: "AdminInventory",
+        component: () => import("../views/admin/AdminInventoryView.vue"),
+        meta: {
+          title: "Inventory Management - SHINY BEAUTY",
+          description: "Manage stock levels and inventory",
+        },
+      },
+      {
+        path: "shipping",
+        name: "AdminShipping",
+        component: () => import("../views/admin/AdminShippingView.vue"),
+        meta: {
+          title: "Shipping Management - SHINY BEAUTY",
+          description: "Manage shipping methods and rates",
+        },
+      },
+      {
+        path: "analytics",
+        name: "AdminAnalytics",
+        component: () => import("../views/admin/AdminAnalyticsView.vue"),
+        meta: {
+          title: "Analytics & Reports - SHINY BEAUTY",
+          description: "View sales analytics and reports",
+        },
+      },
+      {
+        path: "support-tickets",
+        name: "AdminSupportTickets",
+        component: () => import("../views/admin/AdminSupportTicketsView.vue"),
+        meta: {
+          title: "Support Tickets - SHINY BEAUTY",
+          description: "Manage customer support tickets",
+        },
+      },
+      {
+        path: "feedback",
+        name: "AdminFeedback",
+        component: () => import("../views/admin/AdminFeedbackView.vue"),
+        meta: {
+          title: "Customer Feedback - SHINY BEAUTY",
+          description: "View and manage customer feedback",
         },
       },
     ],

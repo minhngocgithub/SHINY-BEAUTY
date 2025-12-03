@@ -1,12 +1,12 @@
 <template>
   <div
-    class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 sticky top-4"
+    class="sticky p-6 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-700 top-4"
   >
-    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+    <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
       Order Summary
     </h2>
 
-    <div class="space-y-3 mb-4">
+    <div class="mb-4 space-y-3">
       <!-- Subtotal -->
       <div class="flex justify-between text-sm">
         <span class="text-gray-600 dark:text-gray-400"
@@ -30,7 +30,7 @@
         <span class="text-gray-600 dark:text-gray-400">Shipping</span>
         <span
           v-if="freeShipping"
-          class="text-green-600 dark:text-green-400 font-medium"
+          class="font-medium text-green-600 dark:text-green-400"
         >
           FREE
         </span>
@@ -51,9 +51,9 @@
     <!-- Benefits Info -->
     <div
       v-if="benefits.length > 0"
-      class="mb-4 p-3 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-md"
+      class="p-3 mb-4 border border-green-200 rounded-md bg-green-50 dark:bg-green-900/10 dark:border-green-800"
     >
-      <ul class="text-xs space-y-1">
+      <ul class="space-y-1 text-xs">
         <li
           v-for="(benefit, index) in benefits"
           :key="index"
@@ -65,7 +65,7 @@
     </div>
 
     <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-      <div class="flex justify-between items-center mb-4">
+      <div class="flex items-center justify-between mb-4">
         <span class="text-base font-semibold text-gray-900 dark:text-white"
           >Total</span
         >
@@ -77,14 +77,14 @@
       <button
         @click="$emit('checkout')"
         :disabled="loading || itemCount === 0"
-        class="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-3 rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        class="w-full py-3 font-medium text-white transition-colors bg-gray-900 rounded-lg dark:bg-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Proceed to Checkout
       </button>
 
       <button
         @click="$emit('continue-shopping')"
-        class="w-full mt-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white py-2 transition-colors"
+        class="w-full py-2 mt-2 text-sm text-gray-600 transition-colors dark:text-gray-400 hover:text-gray-900 dark:hover:text-[#FFFF]"
       >
         Continue Shopping
       </button>
@@ -93,9 +93,9 @@
     <!-- Total Savings -->
     <div
       v-if="totalSavings > 0"
-      class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-center"
+      class="pt-4 mt-4 text-center border-t border-gray-200 dark:border-gray-700"
     >
-      <p class="text-sm text-green-600 dark:text-green-400 font-medium">
+      <p class="text-sm font-medium text-green-600 dark:text-green-400">
         You're saving {{ formatCurrency(totalSavings) }}
       </p>
     </div>

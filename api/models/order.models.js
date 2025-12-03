@@ -18,8 +18,11 @@ const orderSchema = new mongoose.Schema(
         originalPrice: { type: Number, required: true },
         product: {
           type: mongoose.Schema.Types.ObjectId,
-          required: true,
           ref: "Product",
+          // Product is required only when bundle is not present
+          required: function () {
+            return !this.bundle;
+          }
         },
         // Bundle support (optional)
         bundle: {

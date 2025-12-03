@@ -1,18 +1,18 @@
 <template>
-  <div class="h-screen overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6">
+  <div class="h-screen p-6 overflow-y-auto bg-slate-50 dark:bg-slate-900">
     <!-- Header -->
     <div class="mb-6">
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white">
         Users Management
       </h1>
-      <p class="text-slate-600 dark:text-slate-400 mt-1">
+      <p class="mt-1 text-slate-600 dark:text-slate-400">
         Manage customers and admin accounts
       </p>
     </div>
 
     <!-- Filters & Search -->
     <div
-      class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-6 mb-6"
+      class="p-6 mb-6 bg-white border shadow-lg dark:bg-slate-800 rounded-xl border-slate-200 dark:border-slate-700"
     >
       <div class="flex items-center gap-2 mb-4">
         <svg
@@ -32,13 +32,13 @@
           Bộ Lọc & Tìm Kiếm
         </h3>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="md:col-span-2 relative">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div class="relative md:col-span-2">
           <div
-            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+            class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"
           >
             <svg
-              class="h-5 w-5 text-slate-400"
+              class="w-5 h-5 text-slate-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -121,16 +121,16 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex justify-center items-center py-12">
+    <div v-if="loading" class="flex items-center justify-center py-12">
       <div
-        class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"
+        class="w-12 h-12 border-b-2 border-blue-600 rounded-full animate-spin"
       ></div>
     </div>
 
     <!-- Error -->
     <div
       v-else-if="error"
-      class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
+      class="p-4 border border-red-200 rounded-lg bg-red-50 dark:bg-red-900/20 dark:border-red-800"
     >
       <p class="text-red-800 dark:text-red-200">{{ error }}</p>
     </div>
@@ -138,43 +138,43 @@
     <!-- Users Table -->
     <div
       v-else
-      class="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden"
+      class="overflow-hidden bg-white rounded-lg shadow dark:bg-slate-800"
     >
       <table class="w-full">
         <thead class="bg-slate-100 dark:bg-slate-700">
           <tr>
             <th
-              class="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white"
+              class="px-4 py-3 text-sm font-semibold text-left text-slate-900 dark:text-white"
             >
               User
             </th>
             <th
-              class="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white"
+              class="px-4 py-3 text-sm font-semibold text-left text-slate-900 dark:text-white"
             >
               Email
             </th>
             <th
-              class="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white"
+              class="px-4 py-3 text-sm font-semibold text-left text-slate-900 dark:text-white"
             >
               Role
             </th>
             <th
-              class="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white"
+              class="px-4 py-3 text-sm font-semibold text-left text-slate-900 dark:text-white"
             >
               Loyalty Tier
             </th>
             <th
-              class="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white"
+              class="px-4 py-3 text-sm font-semibold text-left text-slate-900 dark:text-white"
             >
               Total Orders
             </th>
             <th
-              class="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white"
+              class="px-4 py-3 text-sm font-semibold text-left text-slate-900 dark:text-white"
             >
               Status
             </th>
             <th
-              class="px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white"
+              class="px-4 py-3 text-sm font-semibold text-left text-slate-900 dark:text-white"
             >
               Actions
             </th>
@@ -191,7 +191,7 @@
                 <img
                   :src="user.avatar || '/default-avatar.png'"
                   :alt="user.name"
-                  class="w-10 h-10 rounded-full object-cover"
+                  class="object-cover w-10 h-10 rounded-full"
                 />
                 <div>
                   <div class="font-medium text-slate-900 dark:text-white">
@@ -211,7 +211,7 @@
                 :value="user.isAdmin ? 'admin' : 'user'"
                 @change="changeUserRole(user._id, $event.target.value)"
                 :disabled="user._id === currentUserId"
-                class="px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
+                class="px-2 py-1 text-sm bg-white border rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
               >
                 <option value="user">Customer</option>
                 <option value="admin">Admin</option>
@@ -220,7 +220,7 @@
             <td class="px-4 py-3">
               <span
                 :class="getLoyaltyColor(user.loyaltyTier)"
-                class="px-2 py-1 rounded-full text-xs font-medium"
+                class="px-2 py-1 text-xs font-medium rounded-full"
               >
                 {{ user.loyaltyTier || "Bronze" }}
               </span>
@@ -242,7 +242,7 @@
                     ? 'bg-red-100 text-red-800'
                     : 'bg-green-100 text-green-800'
                 "
-                class="px-2 py-1 rounded-full text-xs font-medium transition-colors hover:opacity-80 disabled:opacity-50"
+                class="px-2 py-1 text-xs font-medium transition-colors rounded-full hover:opacity-80 disabled:opacity-50"
               >
                 {{ user.isBanned ? "Banned" : "Active" }}
               </button>
@@ -251,7 +251,7 @@
               <div class="flex items-center gap-2">
                 <button
                   @click="viewUserDetail(user)"
-                  class="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                  class="p-1 text-blue-600 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
                   title="View Details"
                 >
                   <svg
@@ -277,7 +277,7 @@
                 <button
                   v-if="user._id !== currentUserId"
                   @click="deleteUser(user._id)"
-                  class="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                  class="p-1 text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                   title="Delete User"
                 >
                   <svg
@@ -301,14 +301,14 @@
       </table>
 
       <!-- Empty State -->
-      <div v-if="users.length === 0 && !loading" class="text-center py-12">
+      <div v-if="users.length === 0 && !loading" class="py-12 text-center">
         <p class="text-slate-600 dark:text-slate-400">No users found</p>
       </div>
 
       <!-- Pagination -->
       <div
         v-if="totalPages > 1"
-        class="border-t border-slate-200 dark:border-slate-700 px-4 py-3 flex justify-between items-center"
+        class="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-700"
       >
         <div class="text-sm text-slate-600 dark:text-slate-400">
           Showing {{ users.length }} of {{ totalUsers }} users
@@ -317,7 +317,7 @@
           <button
             @click="changePage(currentPage - 1)"
             :disabled="currentPage === 1"
-            class="px-3 py-1 border rounded text-sm disabled:opacity-50"
+            class="px-3 py-1 text-sm border rounded disabled:opacity-50"
           >
             Previous
           </button>
@@ -327,7 +327,7 @@
           <button
             @click="changePage(currentPage + 1)"
             :disabled="currentPage === totalPages"
-            class="px-3 py-1 border rounded text-sm disabled:opacity-50"
+            class="px-3 py-1 text-sm border rounded disabled:opacity-50"
           >
             Next
           </button>
@@ -349,8 +349,8 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
   getAllUsersApi,
-  changeUserRoleApi,
-  toggleUserStatusApi,
+  updateUserApi,
+  toggleUserBanApi,
   deleteUserApi,
 } from "../../service/admin.service";
 import { useAuthStore } from "../../store/auth.store";
@@ -449,7 +449,7 @@ const changeUserRole = async (userId, newRole) => {
 
   try {
     const isAdmin = newRole === "admin";
-    await changeUserRoleApi(userId, isAdmin);
+    await updateUserApi(userId, isAdmin);
     await fetchUsers();
   } catch (err) {
     alert(err.response?.data?.message || "Failed to change user role");
@@ -462,7 +462,7 @@ const toggleUserStatus = async (user) => {
 
   try {
     const isBanned = !user.isBanned;
-    await toggleUserStatusApi(user._id, isBanned);
+    await toggleUserBanApi(user._id, isBanned);
     await fetchUsers();
   } catch (err) {
     alert(err.response?.data?.message || "Failed to update user status");

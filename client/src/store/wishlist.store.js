@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from './auth.store'
+import { useSaleProgramStore } from './saleProgram.store'
 import {
     getWishlistApi,
     addToWishlistApi,
@@ -18,6 +19,7 @@ import {
 
 export const useWishlistStore = defineStore('wishlist', () => {
     const authStore = useAuthStore()
+    const saleProgramStore = useSaleProgramStore()
 
     // State
     const wishlistItems = ref([])
@@ -32,7 +34,34 @@ export const useWishlistStore = defineStore('wishlist', () => {
 
     const formattedWishlistItems = computed(() => {
         return wishlistItems.value
-            .map(item => formatWishlistItem(item))
+            .map(item => {
+                const formattedItem = formatWishlistItem(item)
+                if (!formattedItem) return null
+
+                // ✅ Enrich product with sale program data (like product.store)
+                if (formattedItem.product && !formattedItem.product.finalPrice && !formattedItem.product.currentPrice) {
+                    const saleProgram = saleProgramStore.getProgramForProduct(formattedItem.product)
+
+                    if (saleProgram && saleProgram.benefits?.discountPercentage) {
+                        const originalPrice = formattedItem.product.price || 0
+                        const discount = (originalPrice * saleProgram.benefits.discountPercentage) / 100
+                        const finalPrice = originalPrice - discount
+
+                        // Enrich product with calculated sale data
+                        formattedItem.product = {
+                            ...formattedItem.product,
+                            finalPrice: finalPrice,
+                            currentPrice: finalPrice,
+                            originalPrice: originalPrice,
+                            hasSale: true,
+                            activeSaleProgram: saleProgram,
+                            discountPercentage: saleProgram.benefits.discountPercentage
+                        }
+                    }
+                }
+
+                return formattedItem
+            })
             .filter(item => item !== null)
     })
 

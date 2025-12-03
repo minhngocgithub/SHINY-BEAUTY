@@ -4,7 +4,14 @@ axios.defaults.baseURL = import.meta.env.VITE_API_URL
 const BASE_WISHLIST_API = '/wishlist'
 
 export const getWishlistApi = async () => {
-    return await axiosApiInstance.get(BASE_WISHLIST_API);
+    // Add query params to populate sale programs and pricing data
+    return await axiosApiInstance.get(BASE_WISHLIST_API, {
+        params: {
+            populate: 'product,bundle',
+            includeSalePrograms: true,
+            calculatePrices: true
+        }
+    });
 }
 export const addToWishlistApi = async (productId) => {
     return await axiosApiInstance.post(`${BASE_WISHLIST_API}/add`, { productId });
@@ -36,8 +43,9 @@ export const formatWishlistItem = (item) => {
         const bundle = item.bundle;
         if (!bundle) return null;
 
-        const currentPrice = bundle.bundlePrice || 0;
-        const originalPrice = item.priceWhenAdded || bundle.originalPrice || 0;
+        // Use backend-calculated price if available (same as BundleCard.vue)
+        const currentPrice = bundle.finalPrice || bundle.currentPrice || bundle.bundlePrice || 0;
+        const originalPrice = bundle.originalPrice || bundle.price || 0;
         const priceDiff = originalPrice - currentPrice;
         const pricePercentChange = originalPrice > 0 ? ((priceDiff / originalPrice) * 100).toFixed(2) : 0;
 
@@ -45,8 +53,9 @@ export const formatWishlistItem = (item) => {
             ...item,
             bundle: {
                 ...bundle,
-                displayPrice: (currentPrice).toFixed(2),
-                originalPrice: (originalPrice).toFixed(2)
+                displayPrice: currentPrice,
+                originalPrice: originalPrice,
+                discountPercentage: bundle.discountPercentage || parseInt(pricePercentChange) || 0
             },
             priceDiff: priceDiff.toFixed(2),
             pricePercentChange,
@@ -58,8 +67,19 @@ export const formatWishlistItem = (item) => {
     const product = item.product;
     if (!product) return null;
 
-    const currentPrice = product.salePrice || product.price;
-    const originalPrice = item.priceWhenAdded || product.price;
+    // Priority: Use backend-calculated prices (same as CardProduct.vue logic)
+    // Backend middleware should populate: finalPrice, currentPrice, hasSale, activeSaleProgram, discountPercentage
+    const hasBackendSale = !!(
+        product.hasSale ||
+        product.activeSaleProgram ||
+        (product.finalPrice && product.finalPrice < product.price)
+    );
+
+    const currentPrice = hasBackendSale
+        ? (product.finalPrice || product.currentPrice || product.salePrice || product.price)
+        : product.price;
+
+    const originalPrice = product.originalPrice || product.price;
     const priceDiff = originalPrice - currentPrice;
     const pricePercentChange = originalPrice > 0
         ? ((priceDiff / originalPrice) * 100).toFixed(2)
@@ -69,8 +89,13 @@ export const formatWishlistItem = (item) => {
         ...item,
         product: {
             ...product,
-            displayPrice: currentPrice.toFixed(2),
-            originalPrice: originalPrice.toFixed(2)
+            displayPrice: currentPrice,
+            originalPrice: originalPrice,
+            // Preserve backend-calculated discount percentage
+            discountPercentage: product.discountPercentage || parseInt(pricePercentChange) || 0,
+            // Preserve sale info
+            hasSale: hasBackendSale,
+            activeSaleProgram: product.activeSaleProgram || null
         },
         priceDiff: priceDiff.toFixed(2),
         pricePercentChange,

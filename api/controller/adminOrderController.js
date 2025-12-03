@@ -113,6 +113,26 @@ const confirmOrder = async (req, res) => {
                 trackingNumber,
                 timeline: order.timeline,
             });
+
+            // Emit to admin namespace - order updated event
+            io.of('/admin').to('admin:orders').emit('admin:order:updated', {
+                success: true,
+                data: order,
+                action: 'confirmed',
+                by: req.user._id,
+                timestamp: new Date()
+            });
+
+            // Update admin dashboard stats
+            const AdminDashboardService = require('../services/adminDashboard.service');
+            await AdminDashboardService.invalidateCache();
+            const updatedStats = await AdminDashboardService.getDashboardStats(true);
+            io.of('/admin').to('admin:dashboard').emit('admin:dashboard:update', {
+                success: true,
+                data: updatedStats,
+                updateType: 'order_confirmed',
+                timestamp: new Date()
+            });
         }
 
         logger.info("Order confirmed", {
@@ -216,6 +236,27 @@ const cancelOrder = async (req, res) => {
                 orderId: order._id,
                 reason,
                 cancelledAt: order.cancelledAt,
+            });
+
+            // Emit to admin namespace - order cancelled event
+            io.of('/admin').to('admin:orders').emit('admin:order:updated', {
+                success: true,
+                data: order,
+                action: 'cancelled',
+                by: req.user._id,
+                reason,
+                timestamp: new Date()
+            });
+
+            // Update admin dashboard stats
+            const AdminDashboardService = require('../services/adminDashboard.service');
+            await AdminDashboardService.invalidateCache();
+            const updatedStats = await AdminDashboardService.getDashboardStats(true);
+            io.of('/admin').to('admin:dashboard').emit('admin:dashboard:update', {
+                success: true,
+                data: updatedStats,
+                updateType: 'order_cancelled',
+                timestamp: new Date()
             });
         }
 

@@ -38,32 +38,45 @@
         <div
           v-for="item in wishlistStore.formattedWishlistItems"
           :key="item._id"
-          class="p-4 transition-all duration-200 bg-white border border-gray-100 rounded-xl hover:shadow-md"
+          class="p-4 transition-all duration-200 bg-white border border-gray-100 cursor-pointer rounded-xl hover:shadow-md hover:border-rose-200"
+          @click="goToProductDetail(getItemData(item))"
         >
           <div class="flex gap-4">
-            <img
-              :src="getProductImage(item.product)"
-              :alt="item.product?.name"
-              class="object-cover w-20 h-20 border border-gray-100 rounded-lg"
-              @error="handleImageError"
-            />
-            <div class="flex-1">
-              <h3 class="font-semibold text-gray-700 line-clamp-2">
-                {{ item.product?.name }}
+            <div class="relative flex-shrink-0">
+              <img
+                :src="getProductImage(getItemData(item))"
+                :alt="getItemData(item)?.name"
+                class="object-cover w-20 h-20 border-2 border-gray-100 rounded-lg"
+                @error="handleImageError"
+              />
+              <div
+                v-if="getDiscountPercentage(item) > 0"
+                class="absolute top-0 right-0 px-1.5 py-0.5 text-xs font-bold text-white bg-red-500 rounded-bl-lg rounded-tr-lg"
+              >
+                -{{ getDiscountPercentage(item) }}%
+              </div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3
+                class="font-semibold text-gray-700 transition-colors line-clamp-2 hover:text-rose-600"
+              >
+                {{ getItemData(item)?.name }}
               </h3>
+              <p
+                v-if="getItemData(item)?.brand"
+                class="text-xs text-gray-500 mt-0.5"
+              >
+                {{ getItemData(item).brand }}
+              </p>
               <div class="flex items-center gap-2 mt-1">
                 <div class="font-semibold text-rose-600">
-                  {{
-                    formatCurrency(
-                      item.product?.displayPrice || item.product?.price
-                    )
-                  }}
+                  {{ formatCurrency(getDisplayPrice(item)) }}
                 </div>
                 <div
-                  v-if="item.product?.salePrice"
+                  v-if="getDiscountPercentage(item) > 0"
                   class="text-sm text-gray-400 line-through"
                 >
-                  {{ formatCurrency(item.product?.price) }}
+                  {{ formatCurrency(getOriginalPrice(item)) }}
                 </div>
               </div>
 
@@ -77,14 +90,14 @@
 
               <div class="flex gap-2 mt-3">
                 <button
-                  @click="$emit('move-to-cart', item.product._id)"
-                  class="px-3 py-1 text-xs rounded-lg bg-rose-100 text-rose-600 hover:bg-rose-200"
+                  @click.stop="$emit('move-to-cart', getItemData(item)._id)"
+                  class="px-3 py-1 text-xs font-medium transition-colors rounded-lg bg-rose-100 text-rose-600 hover:bg-rose-200"
                 >
                   Add to Cart
                 </button>
                 <button
-                  @click="$emit('remove-item', item.product._id)"
-                  class="px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  @click.stop="$emit('remove-item', getItemData(item)._id)"
+                  class="px-3 py-1 text-xs font-medium text-gray-600 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-rose-600"
                 >
                   Remove
                 </button>
@@ -113,6 +126,10 @@
 </template>
 
 <script setup>
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+
 defineProps({
   wishlistStore: {
     type: Object,
@@ -128,49 +145,87 @@ const formatCurrency = (amount) => {
     currency: "USD",
   }).format(amount || 0);
 };
-const getProductImage = (product) => {
-  // Check if product exists first
-  if (!product) {
-    console.warn("Product is undefined or null");
-    return "/placeholder.jpg";
-  }
 
-  // Check images array
-  if (
-    product.images &&
-    Array.isArray(product.images) &&
-    product.images.length > 0
-  ) {
-    const firstImage = product.images[0];
-    return firstImage?.url || firstImage || "/placeholder.jpg";
-  }
-
-  // Check image array
-  if (
-    product.image &&
-    Array.isArray(product.image) &&
-    product.image.length > 0
-  ) {
-    const firstImage = product.image[0];
-    return firstImage?.url || firstImage || "/placeholder.jpg";
-  }
-
-  // Check image object
-  if (product.image && typeof product.image === "object" && product.image.url) {
-    return product.image.url;
-  }
-
-  // Check image string
-  if (product.image && typeof product.image === "string") {
-    return product.image;
-  }
-
-  console.warn("No valid image found for product:", product.name);
-  return "/placeholder.jpg";
+const getItemData = (item) => {
+  return item.product || item.bundle || item;
 };
+
+const getDisplayPrice = (item) => {
+  const data = getItemData(item);
+  if (!data) return 0;
+
+  // Use pre-calculated prices from backend
+  return parseFloat(
+    data.finalPrice ||
+      data.currentPrice ||
+      data.salePrice ||
+      data.displayPrice ||
+      data.price ||
+      0
+  );
+};
+
+const getOriginalPrice = (item) => {
+  const data = getItemData(item);
+  if (!data) return 0;
+
+  return parseFloat(data.originalPrice || data.price || 0);
+};
+
+const getDiscountPercentage = (item) => {
+  const display = getDisplayPrice(item);
+  const original = getOriginalPrice(item);
+
+  if (original <= 0 || display >= original) return 0;
+  return Math.round(((original - display) / original) * 100);
+};
+
+const getProductImage = (entity) => {
+  if (!entity) {
+    return "/placeholder-product.png";
+  }
+
+  // Try images array first (most common)
+  if (
+    entity.images &&
+    Array.isArray(entity.images) &&
+    entity.images.length > 0
+  ) {
+    const firstImage = entity.images[0];
+    return firstImage?.url || firstImage || "/placeholder-product.png";
+  }
+
+  // Try image array
+  if (entity.image && Array.isArray(entity.image) && entity.image.length > 0) {
+    const firstImage = entity.image[0];
+    return firstImage?.url || firstImage || "/placeholder-product.png";
+  }
+
+  // Try image object
+  if (entity.image && typeof entity.image === "object" && entity.image.url) {
+    return entity.image.url;
+  }
+
+  // Try image string
+  if (entity.image && typeof entity.image === "string") {
+    return entity.image;
+  }
+
+  return "/placeholder-product.png";
+};
+
 const handleImageError = (event) => {
-  console.error("Image failed to load:", event.target.src);
-  event.target.src = "/placeholder.jpg";
+  event.target.src = "/placeholder-product.png";
+};
+
+const goToProductDetail = (entity) => {
+  if (!entity?._id) return;
+
+  if (entity.bundlePrice || entity.items) {
+    router.push(`/bundles/${entity._id}`);
+  } else {
+    router.push(`/products/${entity._id}`);
+  }
 };
 </script>
 
