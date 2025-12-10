@@ -1,6 +1,14 @@
 <template>
   <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <Header />
+
     <div class="px-4 py-8 mx-auto max-w-7xl">
+      <!-- Breadcrumb -->
+      <div class="mb-6">
+        <BreadCrumb :items="breadcrumbItems" />
+      </div>
+
       <!-- Search Header -->
       <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900">
@@ -209,6 +217,8 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
+import Header from "../components/Header.vue";
+import BreadCrumb from "../components/commons/BreadCrumb.vue";
 import CardProduct from "../components/product/CardProduct.vue";
 import FilterSidebarWrapper from "../components/filters/FilterSidebarWrapper.vue";
 import FilterDrawerWrapper from "../components/filters/FilterDrawerWrapper.vue";
@@ -241,6 +251,23 @@ const filterState = ref({
 
 const searchQuery = ref({
   keyword: route.query.keyword || "",
+});
+
+// Breadcrumb items
+const breadcrumbItems = computed(() => {
+  const items = [
+    { label: "Home", to: "/" },
+    { label: "Search", to: "/shop/search" },
+  ];
+
+  if (searchQuery.value.keyword) {
+    items.push({
+      label: `"${searchQuery.value.keyword}"`,
+      to: route.fullPath,
+    });
+  }
+
+  return items;
 });
 
 // Computed properties

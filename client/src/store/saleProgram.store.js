@@ -199,15 +199,19 @@ export const useSaleProgramStore = defineStore('saleProgram', () => {
     try {
       loading.value = true
       error.value = null
-
       const response = await getAllSaleProgramsApi(params)
-
       if (response.data.success) {
-        salePrograms.value = response.data.salePrograms || []
+        salePrograms.value = response.data.data?.salePrograms || response.data.salePrograms || []
+      } else {
+        console.warn('⚠️ API returned success=false')
       }
     } catch (err) {
       error.value = err.response?.data?.message || 'Failed to fetch sale programs'
-      console.error('Fetch sale programs error:', err)
+      console.error('❌ Fetch sale programs error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      })
     } finally {
       loading.value = false
     }
@@ -323,6 +327,106 @@ export const useSaleProgramStore = defineStore('saleProgram', () => {
     }
   }
 
+  const toggleSaleProgramStatus = async (id) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      const response = await toggleSaleProgramStatusApi(id)
+
+      if (response.data.success) {
+        const updatedProgram = response.data.data?.saleProgram || response.data.saleProgram
+
+        // Update in salePrograms array
+        const index = salePrograms.value.findIndex(program => program._id === id)
+        if (index !== -1) {
+          salePrograms.value[index] = { ...salePrograms.value[index], isActive: updatedProgram.isActive }
+        }
+
+        // Update in activePrograms array if exists
+        const activeIndex = activePrograms.value.findIndex(program => program._id === id)
+        if (activeIndex !== -1) {
+          activePrograms.value[activeIndex] = { ...activePrograms.value[activeIndex], isActive: updatedProgram.isActive }
+        }
+
+        return { success: true, data: updatedProgram }
+      }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Failed to toggle sale program status'
+      console.error('Toggle sale program status error:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const syncProducts = async (id, productIds) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      const response = await syncProductsToSaleProgramApi(id, productIds)
+
+      if (response.data.success) {
+        // Update the program with new products
+        const index = salePrograms.value.findIndex(program => program._id === id)
+        if (index !== -1) {
+          salePrograms.value[index] = response.data.saleProgram
+        }
+        return { success: true, data: response.data.saleProgram }
+      }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Failed to sync products'
+      console.error('Sync products error:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const syncBundles = async (id, bundleIds) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      const response = await syncBundlesToSaleProgramApi(id, bundleIds)
+
+      if (response.data.success) {
+        // Update the program with new bundles
+        const index = salePrograms.value.findIndex(program => program._id === id)
+        if (index !== -1) {
+          salePrograms.value[index] = response.data.saleProgram
+        }
+        return { success: true, data: response.data.saleProgram }
+      }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Failed to sync bundles'
+      console.error('Sync bundles error:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const getProgramAnalytics = async (id) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      const response = await getSaleProgramAnalyticsApi(id)
+
+      if (response.data.success) {
+        return { success: true, data: response.data.analytics }
+      }
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Failed to fetch analytics'
+      console.error('Fetch analytics error:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const clearError = () => {
     error.value = null
   }
@@ -353,6 +457,10 @@ export const useSaleProgramStore = defineStore('saleProgram', () => {
     createSaleProgram,
     updateSaleProgram,
     deleteSaleProgram,
+    toggleSaleProgramStatus,
+    syncProducts,
+    syncBundles,
+    getProgramAnalytics,
     clearError
   }
 })

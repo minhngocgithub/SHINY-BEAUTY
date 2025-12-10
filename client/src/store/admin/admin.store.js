@@ -99,12 +99,12 @@ export const useAdminStore = defineStore('admin', {
         /**
          * Fetch initial dashboard statistics from API
          */
-        async fetchDashboardStats() {
+        async fetchDashboardStats(useCache = true) {
             try {
                 this.loading = true;
                 this.error = null;
 
-                const response = await getDashboardAnalytics();
+                const response = await getDashboardAnalytics({ useCache });
 
                 if (response.data.success) {
                     this.updateDashboardStats(response.data.data);
@@ -170,13 +170,7 @@ export const useAdminStore = defineStore('admin', {
             }
 
             this.lastUpdate = new Date();
-            console.log('[AdminStore] Dashboard stats updated');
         },
-
-        /**
-         * Add new order to recent list (from Socket.IO)
-         * @param {Object} order - New order object
-         */
         addRecentOrder(order) {
             // Add to the beginning of array
             this.recentOrders.unshift(order);
@@ -190,8 +184,6 @@ export const useAdminStore = defineStore('admin', {
             this.dashboardStats.orders.total += 1;
             this.dashboardStats.orders.pending += 1;
             this.alerts.pendingOrders += 1;
-
-            console.log('[AdminStore] New order added to recent list:', order._id);
         },
 
         /**
@@ -205,21 +197,16 @@ export const useAdminStore = defineStore('admin', {
 
             if (index !== -1) {
                 this.recentOrders[index] = updatedOrder;
-                console.log('[AdminStore] Order updated in recent list:', updatedOrder._id);
             }
         },
 
-        /**
-         * Update real-time metrics
-         * @param {Object} metrics - Metrics to update
-         */
         updateRealtimeMetrics(metrics) {
             if (metrics.activeUsers !== undefined) {
                 this.dashboardStats.users.online = metrics.activeUsers;
             }
 
             if (metrics.revenuePerHour !== undefined) {
-                // You can add this field to state if needed
+
                 console.log('[AdminStore] Revenue per hour:', metrics.revenuePerHour);
             }
 
@@ -342,7 +329,6 @@ export const useAdminStore = defineStore('admin', {
             this.error = null;
             this.lastUpdate = null;
 
-            console.log('[AdminStore] Store reset to initial state');
         }
     }
 });

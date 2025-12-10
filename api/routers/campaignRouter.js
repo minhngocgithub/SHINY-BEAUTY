@@ -20,4 +20,8 @@ router.get('/:id/stats', authenticate, authorizeAdmin, campaignController.getCam
 router.post('/estimate', authenticate, authorizeAdmin, campaignController.estimateCampaignReach);
 router.get('/queue/stats', authenticate, authorizeAdmin, campaignController.getQueueStats);
 
+// Email tracking (no auth required - for tracking pixels and links)
+router.get('/:id/track/open', campaignController.trackOpen);
+router.get('/:id/track/click', campaignController.trackClick);
+
 module.exports = router;

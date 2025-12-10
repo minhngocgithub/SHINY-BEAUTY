@@ -6,7 +6,7 @@
       <!-- Back Button -->
       <button
         @click="$router.push('/orders')"
-        class="flex items-center gap-2 mb-6 text-gray-700 transition-all hover:text-rose-600 hover:translate-x-[-4px] bg-[#FFFF]"
+        class="flex items-center gap-2 mb-6 text-gray-700 transition-all hover:text-rose-600 hover:translate-x-[-4px] bg-transparent"
       >
         <svg
           class="w-5 h-5"
@@ -173,6 +173,20 @@
                       </h3>
                       <p class="mt-1 text-sm text-gray-600">
                         Qty: {{ item.quantity }}
+                      </p>
+                      <!-- Review Button for Delivered Orders -->
+                      <button
+                        v-if="isDelivered && (item.product || item.productId)"
+                        @click="openReviewModal(item)"
+                        class="mt-2 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-rose-500 to-pink-600 rounded-lg hover:from-rose-600 hover:to-pink-700 transition-all shadow-sm hover:shadow-md"
+                      >
+                        ⭐ Write Review
+                      </button>
+                      <p
+                        v-else-if="isDelivered && item.bundle"
+                        class="mt-2 text-xs italic text-gray-500"
+                      >
+                        Bundle items - Review individual products
                       </p>
                     </div>
                     <div class="text-right">
@@ -367,6 +381,34 @@
                 </button>
               </div>
             </div>
+
+            <!-- Chat with Admin for Delivered Orders -->
+            <div
+              v-if="isDelivered"
+              class="overflow-hidden bg-white shadow-lg rounded-2xl"
+            >
+              <div class="p-6">
+                <button
+                  @click="openChatSupport"
+                  class="flex items-center justify-center w-full gap-2 py-3 font-semibold text-white transition-all shadow-md bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl hover:from-blue-600 hover:to-indigo-700 hover:shadow-lg hover:scale-105"
+                >
+                  <svg
+                    class="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  💬 Chat with Admin
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -419,18 +461,213 @@
           </div>
         </div>
       </div>
+
+      <!-- Review Modal -->
+      <div
+        v-if="showReviewModal"
+        class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm"
+        @click.self="closeReviewModal"
+      >
+        <div
+          class="w-full max-w-2xl overflow-hidden bg-white shadow-2xl rounded-2xl max-h-[90vh] overflow-y-auto"
+        >
+          <div
+            class="sticky top-0 z-10 p-6 border-b border-gray-100 bg-gradient-to-r from-rose-50 to-pink-50"
+          >
+            <div class="flex items-center justify-between">
+              <h3
+                class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-pink-600"
+              >
+                ⭐ Write Review
+              </h3>
+              <button
+                @click="closeReviewModal"
+                class="text-gray-400 transition-colors hover:text-gray-600"
+              >
+                <svg
+                  class="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-6">
+            <!-- Product Info -->
+            <div
+              v-if="reviewItem"
+              class="flex items-center gap-4 p-4 mb-6 bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl"
+            >
+              <img
+                :src="getItemImage(reviewItem)"
+                :alt="getItemName(reviewItem)"
+                class="object-cover w-20 h-20 rounded-lg ring-2 ring-rose-200"
+              />
+              <div class="flex-1">
+                <h4 class="font-semibold text-gray-900">
+                  {{ getItemName(reviewItem) }}
+                </h4>
+                <p class="text-sm text-gray-600">
+                  Quantity: {{ reviewItem.quantity }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Rating -->
+            <div class="mb-6">
+              <label class="block mb-2 text-sm font-semibold text-gray-700"
+                >Your Rating *</label
+              >
+              <div class="flex gap-2">
+                <button
+                  v-for="star in 5"
+                  :key="star"
+                  @click="reviewData.rating = star"
+                  type="button"
+                  class="text-4xl transition-all hover:scale-110"
+                  :class="
+                    star <= reviewData.rating
+                      ? 'text-yellow-400'
+                      : 'text-gray-300'
+                  "
+                >
+                  ★
+                </button>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                {{ ratingLabels[reviewData.rating] || "Click to rate" }}
+              </p>
+            </div>
+
+            <!-- Review Comment -->
+            <div class="mb-6">
+              <label class="block mb-2 text-sm font-semibold text-gray-700"
+                >Your Review *</label
+              >
+              <textarea
+                v-model="reviewData.comment"
+                rows="5"
+                placeholder="Share your experience with this product..."
+                class="w-full px-4 py-3 text-gray-900 placeholder-gray-400 transition-all border border-gray-200 resize-none rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+              ></textarea>
+              <p class="mt-1 text-xs text-gray-500">
+                {{ reviewData.comment.length }} / 500 characters
+              </p>
+            </div>
+
+            <!-- Upload Images -->
+            <div class="mb-6">
+              <label class="block mb-2 text-sm font-semibold text-gray-700"
+                >Add Photos (Optional)</label
+              >
+              <div class="flex flex-wrap gap-3">
+                <!-- Image Previews -->
+                <div
+                  v-for="(preview, index) in imagePreviews"
+                  :key="index"
+                  class="relative group"
+                >
+                  <img
+                    :src="preview"
+                    class="object-cover w-24 h-24 border-2 border-gray-200 rounded-lg"
+                  />
+                  <button
+                    @click="removeImage(index)"
+                    type="button"
+                    class="absolute p-1 text-white transition-opacity bg-red-500 rounded-full opacity-0 top-1 right-1 group-hover:opacity-100"
+                  >
+                    <svg
+                      class="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Upload Button -->
+                <label
+                  v-if="imagePreviews.length < 5"
+                  class="flex items-center justify-center w-24 h-24 transition-all border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-rose-500 hover:bg-rose-50"
+                >
+                  <input
+                    type="file"
+                    @change="handleImageUpload"
+                    accept="image/*"
+                    multiple
+                    class="hidden"
+                  />
+                  <svg
+                    class="w-8 h-8 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                </label>
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                You can upload up to 5 images (JPG, PNG)
+              </p>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="flex gap-3">
+              <button
+                @click="submitReview"
+                :disabled="!canSubmitReview || reviewLoading"
+                class="flex-1 py-3 font-semibold text-white transition-all shadow-md bg-gradient-to-r from-rose-500 to-pink-600 rounded-xl hover:from-rose-600 hover:to-pink-700 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ reviewLoading ? "⏳ Submitting..." : "📝 Submit Review" }}
+              </button>
+              <button
+                @click="closeReviewModal"
+                :disabled="reviewLoading"
+                class="px-6 py-3 font-semibold text-gray-700 transition-all bg-gray-100 rounded-xl hover:bg-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useOrderStore } from "../../store/order.store";
 import { storeToRefs } from "pinia";
 import OrderTimeline from "../../components/order/OrderTimeline.vue";
-import Loading from '../../components/Loading.vue'
+import Loading from "../../components/Loading.vue";
+import { createReviewApi } from "../../service/review.service";
+
 const route = useRoute();
+const router = useRouter();
 const orderStore = useOrderStore();
 const { currentOrder, loading, error } = storeToRefs(orderStore);
 
@@ -438,28 +675,52 @@ const showCancelModal = ref(false);
 const cancelReason = ref("");
 const cancelLoading = ref(false);
 
+// Review Modal States
+const showReviewModal = ref(false);
+const reviewItem = ref(null);
+const reviewData = ref({
+  rating: 0,
+  comment: "",
+});
+const reviewImages = ref([]);
+const imagePreviews = ref([]);
+const reviewLoading = ref(false);
+
+const ratingLabels = {
+  1: "😞 Poor",
+  2: "🙁 Fair",
+  3: "🙂 Good",
+  4: "😊 Very Good",
+  5: "🤩 Excellent",
+};
+
 const canCancel = computed(() => {
   const status = currentOrder.value?.status || currentOrder.value?.orderStatus;
-  return ["PENDING", "CONFIRMED", "pending", "confirmed"].includes(status);
+  return status === "PENDING";
+});
+
+const isDelivered = computed(() => {
+  const status = currentOrder.value?.status || currentOrder.value?.orderStatus;
+  return status === "DELIVERED";
+});
+
+const canSubmitReview = computed(() => {
+  return (
+    reviewData.value.rating > 0 &&
+    reviewData.value.comment.trim().length >= 10 &&
+    reviewData.value.comment.length <= 500
+  );
 });
 
 const getStatusLabel = (status) => {
   const labels = {
-    PENDING: "Pending",
-    CONFIRMED: "Confirmed",
-    PREPARING: "Preparing",
-    IN_TRANSIT: "In Transit",
-    OUT_FOR_DELIVERY: "Out for Delivery",
-    DELIVERED: "Delivered",
-    CANCELLED: "Cancelled",
-    pending: "Pending",
-    confirmed: "Confirmed",
-    paid: "Paid",
-    preparing: "Preparing",
-    processing: "Processing",
-    shipped: "Shipped",
-    delivered: "Delivered",
-    cancelled: "Cancelled",
+    PENDING: "⏳ Pending",
+    CONFIRMED: "✅ Confirmed",
+    PREPARING: "📦 Preparing",
+    IN_TRANSIT: "🚚 In Transit",
+    OUT_FOR_DELIVERY: "🚴 Out for Delivery",
+    DELIVERED: "✨ Delivered",
+    CANCELLED: "❌ Cancelled",
   };
   return labels[status] || status;
 };
@@ -570,17 +831,165 @@ const confirmCancel = async () => {
   }
 };
 
+const openReviewModal = (item) => {
+  reviewItem.value = item;
+  reviewData.value = {
+    rating: 0,
+    comment: "",
+  };
+  reviewImages.value = [];
+  imagePreviews.value = [];
+  showReviewModal.value = true;
+};
+
+const closeReviewModal = () => {
+  showReviewModal.value = false;
+  reviewItem.value = null;
+  reviewData.value = { rating: 0, comment: "" };
+  reviewImages.value = [];
+  imagePreviews.value = [];
+};
+
+const handleImageUpload = (event) => {
+  const files = Array.from(event.target.files);
+  const remainingSlots = 5 - imagePreviews.value.length;
+  const filesToAdd = files.slice(0, remainingSlots);
+
+  filesToAdd.forEach((file) => {
+    if (file.type.startsWith("image/")) {
+      reviewImages.value.push(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imagePreviews.value.push(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  event.target.value = "";
+};
+
+const removeImage = (index) => {
+  reviewImages.value.splice(index, 1);
+  imagePreviews.value.splice(index, 1);
+};
+
+const submitReview = async () => {
+  if (!canSubmitReview.value) return;
+
+  try {
+    reviewLoading.value = true;
+
+    // Debug: Log the reviewItem structure
+    console.log("🔍 Review Item Structure:", reviewItem.value);
+
+    // Try multiple ways to get productId and ensure it's a string
+    let productId =
+      reviewItem.value.product?._id ||
+      reviewItem.value.productId?._id ||
+      reviewItem.value.productId ||
+      reviewItem.value.product;
+
+    // ✅ Convert to string if it's an object
+    if (typeof productId === "object" && productId !== null) {
+      productId = productId.toString();
+    } else if (productId) {
+      productId = String(productId);
+    }
+
+    console.log(
+      "📦 Extracted Product ID:",
+      productId,
+      "Type:",
+      typeof productId
+    );
+
+    if (!productId) {
+      console.error("❌ Failed to extract productId from:", reviewItem.value);
+      alert("❌ Product information not found. Please try again.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("product", productId); // ✅ Backend expects "product" not "productId"
+    formData.append("rating", String(reviewData.value.rating));
+    formData.append("comment", reviewData.value.comment);
+    if (currentOrder.value._id) {
+      formData.append("orderId", String(currentOrder.value._id));
+    }
+
+    // Debug: Log FormData contents
+    console.log("📤 Sending Review Data:", {
+      product: productId,
+      rating: reviewData.value.rating,
+      comment: reviewData.value.comment,
+      orderId: currentOrder.value._id,
+      imageCount: reviewImages.value.length,
+    });
+
+    reviewImages.value.forEach((image) => {
+      formData.append("images", image);
+    });
+
+    const response = await createReviewApi(formData);
+    console.log("✅ Review Response:", response.data);
+
+    alert("✅ Review submitted successfully!");
+    closeReviewModal();
+  } catch (err) {
+    console.error("❌ Submit review error:", err);
+    console.error("❌ Error response:", err.response?.data);
+    alert(err.response?.data?.message || "❌ Failed to submit review");
+  } finally {
+    reviewLoading.value = false;
+  }
+};
+
+const openChatSupport = () => {
+  // For now, redirect to contact support email or open a contact form
+  // You can integrate with live chat widget or support ticket system
+  const subject = `Support Request - Order #${currentOrder.value._id?.slice(
+    -8
+  )}`;
+  const body = `Hi Support Team,\n\nI need assistance with my order.\n\nOrder ID: ${currentOrder.value._id}\nOrder Status: ${currentOrder.value.status}\n\nPlease describe your issue:\n\n\nThank you!`;
+
+  window.location.href = `mailto:support@shinybeauty.vn?subject=${encodeURIComponent(
+    subject
+  )}&body=${encodeURIComponent(body)}`;
+};
+
 const fetchOrder = async () => {
   await orderStore.getOrder(route.params.id);
 };
 
 const canTrackOrder = computed(() => {
-  const trackableStatuses = ["shipped", "processing", "paid", "confirmed"];
+  const trackableStatuses = [
+    "CONFIRMED",
+    "PREPARING",
+    "IN_TRANSIT",
+    "OUT_FOR_DELIVERY",
+  ];
   const status = currentOrder.value?.status || currentOrder.value?.orderStatus;
-  return trackableStatuses.includes(status?.toLowerCase());
+  return trackableStatuses.includes(status);
 });
 
 onMounted(() => {
   fetchOrder();
+
+  // Connect to socket for real-time updates when order is loaded
+  if (route.params.id) {
+    // Wait a bit for order to load, then connect socket
+    setTimeout(() => {
+      if (currentOrder.value?._id) {
+        orderStore.connectOrderSocket(currentOrder.value._id);
+        orderStore.requestNotificationPermission();
+      }
+    }, 500);
+  }
+});
+
+onUnmounted(() => {
+  // Disconnect socket when leaving page
+  orderStore.disconnectOrderSocket();
 });
 </script>

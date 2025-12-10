@@ -8,7 +8,7 @@ const campaignSchema = new mongoose.Schema({
         trim: true,
         maxlength: 200
     },
-    
+
     type: {
         type: String,
         enum: [
@@ -19,7 +19,7 @@ const campaignSchema = new mongoose.Schema({
         required: true,
         default: 'BOTH'
     },
-    
+
     category: {
         type: String,
         enum: [
@@ -40,7 +40,7 @@ const campaignSchema = new mongoose.Schema({
     // Content
     subject: {
         type: String,
-        required: function() {
+        required: function () {
             return this.type === 'EMAIL' || this.type === 'BOTH';
         },
         maxlength: 200
@@ -56,9 +56,10 @@ const campaignSchema = new mongoose.Schema({
             'abandonedCart',
             'birthdayOffer',
             'newsletter',
+            'christmas2025',
             'generic'
         ],
-        required: function() {
+        required: function () {
             return this.type === 'EMAIL' || this.type === 'BOTH';
         }
     },
@@ -71,7 +72,7 @@ const campaignSchema = new mongoose.Schema({
 
     notificationTitle: {
         type: String,
-        required: function() {
+        required: function () {
             return this.type === 'NOTIFICATION' || this.type === 'BOTH';
         },
         maxlength: 100
@@ -79,7 +80,7 @@ const campaignSchema = new mongoose.Schema({
 
     notificationMessage: {
         type: String,
-        required: function() {
+        required: function () {
             return this.type === 'NOTIFICATION' || this.type === 'BOTH';
         },
         maxlength: 300
@@ -182,6 +183,15 @@ const campaignSchema = new mongoose.Schema({
         unsubscribedCount: {
             type: Number,
             default: 0
+        },
+        // Track unique users who opened/clicked for deduplication
+        uniqueOpens: {
+            type: [String],
+            default: []
+        },
+        uniqueClicks: {
+            type: [String],
+            default: []
         }
     },
 
@@ -242,58 +252,58 @@ campaignSchema.index({ createdBy: 1, createdAt: -1 });
 campaignSchema.index({ category: 1, status: 1 });
 
 // Virtuals
-campaignSchema.virtual('deliveryRate').get(function() {
+campaignSchema.virtual('deliveryRate').get(function () {
     if (this.stats.sentCount === 0) return 0;
     return ((this.stats.deliveredCount / this.stats.sentCount) * 100).toFixed(2);
 });
 
-campaignSchema.virtual('openRate').get(function() {
+campaignSchema.virtual('openRate').get(function () {
     if (this.stats.deliveredCount === 0) return 0;
     return ((this.stats.openedCount / this.stats.deliveredCount) * 100).toFixed(2);
 });
 
-campaignSchema.virtual('clickRate').get(function() {
+campaignSchema.virtual('clickRate').get(function () {
     if (this.stats.openedCount === 0) return 0;
     return ((this.stats.clickedCount / this.stats.openedCount) * 100).toFixed(2);
 });
 
 // Methods
-campaignSchema.methods.incrementSent = function() {
+campaignSchema.methods.incrementSent = function () {
     this.stats.sentCount += 1;
     return this.save();
 };
 
-campaignSchema.methods.incrementDelivered = function() {
+campaignSchema.methods.incrementDelivered = function () {
     this.stats.deliveredCount += 1;
     return this.save();
 };
 
-campaignSchema.methods.incrementFailed = function() {
+campaignSchema.methods.incrementFailed = function () {
     this.stats.failedCount += 1;
     return this.save();
 };
 
-campaignSchema.methods.markAsProcessing = function() {
+campaignSchema.methods.markAsProcessing = function () {
     this.status = 'PROCESSING';
     this.startedAt = new Date();
     return this.save();
 };
 
-campaignSchema.methods.markAsCompleted = function() {
+campaignSchema.methods.markAsCompleted = function () {
     this.status = 'COMPLETED';
     this.completedAt = new Date();
     return this.save();
 };
 
 // Statics
-campaignSchema.statics.getScheduledCampaigns = function() {
+campaignSchema.statics.getScheduledCampaigns = function () {
     return this.find({
         status: 'SCHEDULED',
         scheduledAt: { $lte: new Date() }
     }).sort({ priority: -1, scheduledAt: 1 });
 };
 
-campaignSchema.statics.getActiveCampaigns = function() {
+campaignSchema.statics.getActiveCampaigns = function () {
     return this.find({
         status: 'PROCESSING'
     });

@@ -60,6 +60,9 @@ router.delete('/:id/images/:imageId', authenticate, authorizeAdmin, productContr
 // Toggle product availability (admin only)
 router.patch('/:id/toggle-availability', authenticate, authorizeAdmin, productController.toggleAvailability)
 
+// Toggle product active status (admin only) - for soft delete/restore
+router.patch('/:id/toggle-active', authenticate, authorizeAdmin, productController.toggleActiveStatus)
+
 // PARAMETERIZED ROUTES
 router.get('/:id/related', applySaleProgramToProducts, productController.getRelatedProducts)
 router.get('/:id/with-reviews', applySaleProgramToProducts, productController.getProductWithReviews)

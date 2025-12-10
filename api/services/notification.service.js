@@ -249,7 +249,8 @@ class NotificationService {
 
                     const pipeline = redisClient.pipeline()
 
-                    // Update notification
+                    // Remove old member and update notification (avoid duplicate members)
+                    pipeline.zrem(notifKey, notifStr)
                     pipeline.zadd(notifKey, notif.createdAt, JSON.stringify(notif))
 
                     // Decrement unread count
@@ -296,6 +297,8 @@ class NotificationService {
                 if (!notif.read) {
                     notif.read = true
                     notif.readAt = Date.now()
+                    // Remove old JSON member then add updated one to avoid duplicates
+                    pipeline.zrem(notifKey, notifStr)
                     pipeline.zadd(notifKey, notif.createdAt, JSON.stringify(notif))
                     updatedCount++
                 }
@@ -845,7 +848,7 @@ class NotificationService {
 
         // Emit to admin room
         if (io) {
-            io.to('admin:orders').emit('notification:new', notification)
+            io.of('/admin').to('admin:orders').emit('notification:new', notification)
             logger.info('Admin notification sent', { orderId: order._id })
         }
     }

@@ -45,6 +45,7 @@ const shippingRouter = require('./routers/shippingRouter')
 const analyticRouter = require('./routers/analyticRouter')
 const inventoryRouter = require('./routers/inventoryRouter')
 const campaignRouter = require('./routers/campaignRouter')
+const notificationRouter = require('./routers/notificationRouter')
 // Connect DB
 const connectDB = async () => {
     try {
@@ -167,6 +168,7 @@ app.use('/api/v1/shipping', shippingRouter);
 app.use('/api/v1/analytics', analyticRouter);
 app.use('/api/v1/inventory', inventoryRouter);
 app.use('/api/v1/campaigns', campaignRouter);
+app.use('/api/v1/notifications', notificationRouter);
 app.get('/test', (req, res) => {
     res.json('test ok');
 })

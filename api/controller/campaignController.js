@@ -491,3 +491,94 @@ exports.getQueueStats = async (req, res) => {
         });
     }
 };
+
+/**
+ * Track email open
+ * GET /api/v1/campaigns/:id/track/open
+ */
+exports.trackOpen = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { u: userId } = req.query; // User ID from tracking pixel
+
+        const campaign = await Campaign.findById(id);
+        if (!campaign) {
+            // Return 1x1 transparent pixel even if campaign not found
+            const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+            res.writeHead(200, {
+                'Content-Type': 'image/gif',
+                'Content-Length': pixel.length,
+                'Cache-Control': 'no-store, no-cache, must-revalidate, private'
+            });
+            return res.end(pixel);
+        }
+
+        // Increment opened count (deduplicate by storing user opens in campaign)
+        if (!campaign.stats.uniqueOpens) {
+            campaign.stats.uniqueOpens = [];
+        }
+
+        if (!campaign.stats.uniqueOpens.includes(userId)) {
+            campaign.stats.uniqueOpens.push(userId);
+            campaign.stats.openedCount += 1;
+            await campaign.save();
+            logger.info(`[Campaign ${id}] Email opened by user ${userId}`);
+        }
+
+        // Return 1x1 transparent tracking pixel
+        const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+        res.writeHead(200, {
+            'Content-Type': 'image/gif',
+            'Content-Length': pixel.length,
+            'Cache-Control': 'no-store, no-cache, must-revalidate, private'
+        });
+        res.end(pixel);
+
+    } catch (error) {
+        logger.error('Track open error:', error);
+        // Still return pixel to avoid broken images
+        const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+        res.writeHead(200, {
+            'Content-Type': 'image/gif',
+            'Content-Length': pixel.length
+        });
+        res.end(pixel);
+    }
+};
+
+/**
+ * Track link click
+ * GET /api/v1/campaigns/:id/track/click
+ */
+exports.trackClick = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { u: userId, url } = req.query; // User ID and target URL
+
+        const campaign = await Campaign.findById(id);
+        if (campaign) {
+            // Increment clicked count (deduplicate by user)
+            if (!campaign.stats.uniqueClicks) {
+                campaign.stats.uniqueClicks = [];
+            }
+
+            if (!campaign.stats.uniqueClicks.includes(userId)) {
+                campaign.stats.uniqueClicks.push(userId);
+                campaign.stats.clickedCount += 1;
+                await campaign.save();
+                logger.info(`[Campaign ${id}] Link clicked by user ${userId}`);
+            }
+        }
+
+        // Redirect to target URL
+        if (url) {
+            res.redirect(url);
+        } else {
+            res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+        }
+
+    } catch (error) {
+        logger.error('Track click error:', error);
+        res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+    }
+};

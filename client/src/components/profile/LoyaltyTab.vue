@@ -64,18 +64,23 @@
 </template>
 
 <script setup>
-import { onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useLoyaltyStore } from "../../store/loyalty.store";
 import { useAuthStore } from "../../store/auth.store";
-import { formatCurrency } from "../../service/loyalty.service";
+import { useUserStore } from "../../store/user.store";
+import { formatCurrency, syncLoyaltyData } from "../../service/loyalty.service";
 import TierCard from "../../components/loyalty/TierCard.vue";
 import StatsCard from "../../components/loyalty/StatsCard.vue";
 import BenefitsCard from "../../components/loyalty/BenefitsCard.vue";
 import PointsHistory from "../../components/loyalty/PointsHistory.vue";
+import Swal from "sweetalert2";
 
 const authStore = useAuthStore();
 const loyaltyStore = useLoyaltyStore();
+const userStore = useUserStore();
+const syncing = ref(false);
+
 const {
   dashboard,
   loading,
@@ -95,16 +100,6 @@ const loadDashboard = async () => {
   try {
     await loyaltyStore.fetchDashboard();
     await loyaltyStore.fetchHistory(1);
-
-    // Debug benefits
-    console.log("=== LOYALTY BENEFITS DEBUG ===");
-    console.log("Current Tier:", currentTier.value?.tier);
-    console.log("Benefits Object:", benefits.value);
-    console.log("birthdayGift:", benefits.value?.birthdayGift);
-    console.log("earlyAccess:", benefits.value?.earlyAccess);
-    console.log("exclusiveProducts:", benefits.value?.exclusiveProducts);
-    console.log("conciergeService:", benefits.value?.conciergeService);
-    console.log("User BirthDate:", authStore.user?.birthDate);
   } catch (err) {
     console.error("Failed to load loyalty dashboard:", err);
   }
@@ -112,5 +107,12 @@ const loadDashboard = async () => {
 
 onMounted(async () => {
   await loadDashboard();
+
+  // Refresh global user stats so parent profile shows updated totals
+  try {
+    await userStore.fetchStats();
+  } catch (err) {
+    console.error("Failed to refresh user stats after loyalty sync:", err);
+  }
 });
 </script>

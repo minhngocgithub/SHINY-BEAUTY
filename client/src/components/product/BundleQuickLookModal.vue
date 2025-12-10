@@ -125,7 +125,7 @@
                 </div>
                 <div class="pt-2 border-t border-gray-200">
                   <span class="text-lg font-semibold text-green-600">
-                    You save ${{ savings }} {{ bundle.discountPercentage }}
+                    You save ${{ savings }} 
                   </span>
                 </div>
               </div>

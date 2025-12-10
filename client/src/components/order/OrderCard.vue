@@ -222,22 +222,24 @@ const displayItems = computed(() => {
 
 const getStatusLabel = (status) => {
   const labels = {
-    pending: "Pending",
-    confirmed: "Confirmed",
-    paid: "Paid",
-    processing: "Processing",
-    shipped: "Shipped",
-    delivered: "Delivered",
-    cancelled: "Cancelled",
+    PENDING: "⏳ Pending",
+    CONFIRMED: "✅ Confirmed",
+    PREPARING: "📦 Preparing",
+    IN_TRANSIT: "🚚 In Transit",
+    OUT_FOR_DELIVERY: "🚴 Out for Delivery",
+    DELIVERED: "✨ Delivered",
+    CANCELLED: "❌ Cancelled",
   };
   return labels[status] || status;
 };
 
 const getOrderStatusClass = (status) => {
   const classes = {
-    PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+    PENDING: "bg-yellow-50 text-yellow-700 border-yellow-200",
     CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
-    PAID: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    PREPARING: "bg-violet-50 text-violet-700 border-violet-200",
+    IN_TRANSIT: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    OUT_FOR_DELIVERY: "bg-purple-50 text-purple-700 border-purple-200",
     DELIVERED: "bg-emerald-50 text-emerald-700 border-emerald-200",
     CANCELLED: "bg-red-50 text-red-700 border-red-200",
   };

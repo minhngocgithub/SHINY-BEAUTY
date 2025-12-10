@@ -4,29 +4,29 @@
   >
     <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
       <button
-          @click="$router.push('/account/profile')"
-          class="flex items-center gap-2 mb-6 text-gray-700 transition-all hover:text-rose-600 hover:translate-x-[-4px] bg-[#FFFF]"
+        @click="$router.push('/account/profile')"
+        class="flex items-center gap-2 mb-6 text-gray-700 transition-all hover:text-rose-600 hover:translate-x-[-4px] bg-transparent"
+      >
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          <span class="font-medium">Back to Profile</span>
-        </button>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+        <span class="font-medium">Back to Profile</span>
+      </button>
       <!-- Header -->
       <div class="relative mb-8 overflow-hidden bg-white shadow-lg rounded-2xl">
         <div
           class="absolute top-0 right-0 w-64 h-64 rounded-full opacity-50 bg-gradient-to-br from-rose-100 to-pink-100 blur-3xl -z-0"
-        ></div>       
+        ></div>
         <div class="relative z-10 p-6">
           <h1
             class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-pink-600"
@@ -127,7 +127,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useOrderStore } from "../../store/order.store";
 import { storeToRefs } from "pinia";
@@ -138,49 +138,58 @@ const orderStore = useOrderStore();
 const { orders, loading } = storeToRefs(orderStore);
 
 const activeTab = ref("all");
+let autoRefreshInterval = null;
 
 const tabs = [
   { label: "All Orders", value: "all" },
   { label: "Pending", value: "pending" },
-  { label: "Processing", value: "processing" },
-  { label: "Shipped", value: "shipped" },
+  { label: "Confirmed", value: "confirmed" },
+  { label: "Preparing", value: "preparing" },
+  { label: "In Transit", value: "in_transit" },
+  { label: "Out for Delivery", value: "out_for_delivery" },
   { label: "Delivered", value: "delivered" },
   { label: "Cancelled", value: "cancelled" },
 ];
-const getStatusClass = (status) => {
-  const classes = {
-    pending: "bg-yellow-100 text-yellow-800 border border-yellow-200",
-    confirmed: "bg-blue-100 text-blue-800 border border-blue-200",
-    paid: "bg-green-100 text-green-800 border border-green-200",
-    processing: "bg-purple-100 text-purple-800 border border-purple-200",
-    shipped: "bg-indigo-100 text-indigo-800 border border-indigo-200",
-    delivered: "bg-emerald-100 text-emerald-800 border border-emerald-200",
-    cancelled: "bg-red-100 text-red-800 border border-red-200",
-  };
-  return classes[status] || "bg-gray-100 text-gray-700 border border-gray-200";
-};
+
 const filteredOrders = computed(() => {
   if (activeTab.value === "all") return orders.value;
 
-  if (activeTab.value === "processing") {
-    return orders.value.filter((order) =>
-      ["confirmed", "paid", "processing"].includes(order.orderStatus)
-    );
-  }
+  // Map tab values to order status values
+  const statusMap = {
+    pending: ["PENDING"],
+    confirmed: ["CONFIRMED"],
+    preparing: ["PREPARING"],
+    in_transit: ["IN_TRANSIT"],
+    out_for_delivery: ["OUT_FOR_DELIVERY"],
+    delivered: ["DELIVERED"],
+    cancelled: ["CANCELLED"],
+  };
 
-  return orders.value.filter((order) => order.orderStatus === activeTab.value);
+  const statusValues = statusMap[activeTab.value];
+  if (!statusValues) return orders.value;
+
+  return orders.value.filter((order) => statusValues.includes(order.status));
 });
 
 const getTabCount = (tabValue) => {
   if (tabValue === "all") return orders.value.length;
 
-  if (tabValue === "processing") {
-    return orders.value.filter((order) =>
-      ["confirmed", "paid", "processing"].includes(order.orderStatus)
-    ).length;
-  }
+  // Map tab values to order status values
+  const statusMap = {
+    pending: ["PENDING"],
+    confirmed: ["CONFIRMED"],
+    preparing: ["PREPARING"],
+    in_transit: ["IN_TRANSIT"],
+    out_for_delivery: ["OUT_FOR_DELIVERY"],
+    delivered: ["DELIVERED"],
+    cancelled: ["CANCELLED"],
+  };
 
-  return orders.value.filter((order) => order.orderStatus === tabValue).length;
+  const statusValues = statusMap[tabValue];
+  if (!statusValues) return 0;
+
+  return orders.value.filter((order) => statusValues.includes(order.status))
+    .length;
 };
 
 const viewOrder = (orderId) => {
@@ -189,5 +198,22 @@ const viewOrder = (orderId) => {
 
 onMounted(async () => {
   await orderStore.fetchMyOrders();
+
+  // Auto-refresh orders list every 60 seconds to show updates from cron job
+  autoRefreshInterval = setInterval(async () => {
+    // Silently refresh without showing loading spinner
+    const currentLoading = loading.value;
+    await orderStore.fetchMyOrders();
+    // Restore loading state if it was false (silent refresh)
+    if (!currentLoading) {
+      loading.value = false;
+    }
+  }, 60000); // Refresh every 60 seconds
+});
+
+onUnmounted(() => {
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+  }
 });
 </script>

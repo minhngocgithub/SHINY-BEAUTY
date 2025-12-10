@@ -5,7 +5,7 @@ const { generateAccessToken, generateRefreshToken } = require('../utils/createTo
 const oauthSuccess = async (req, res) => {
     try {
         const user = req.user;
-        
+
         if (!user) {
             return res.status(400).json({
                 success: false,
@@ -24,8 +24,8 @@ const oauthSuccess = async (req, res) => {
         const { password, refreshToken: _, ...userData } = user.toObject();
 
         // Redirect to frontend with tokens
-        const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
-        const redirectUrl = `${frontendBaseUrl}/oauth-success?` + 
+        const frontendBaseUrl = process.env.CLIENT_URL || 'http://localhost:5173'
+        const redirectUrl = `${frontendBaseUrl}/oauth-success?` +
             `accessToken=${accessToken}&` +
             `refreshToken=${refreshToken}&` +
             `userData=${encodeURIComponent(JSON.stringify(userData))}`;
@@ -34,7 +34,7 @@ const oauthSuccess = async (req, res) => {
 
     } catch (error) {
         console.error('OAuth Success Error:', error);
-        const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+        const frontendBaseUrl = process.env.CLIENT_URL || 'http://localhost:5173'
         res.redirect(`${frontendBaseUrl}/oauth-error?message=${encodeURIComponent('Authentication failed')}`);
     }
 };
@@ -42,14 +42,14 @@ const oauthSuccess = async (req, res) => {
 // OAuth Failure Handler
 const oauthFailure = (req, res) => {
     console.error('OAuth Failure:', req.query);
-    const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const frontendBaseUrl = process.env.CLIENT_URL || 'http://localhost:5173'
     res.redirect(`${frontendBaseUrl}/oauth-error?message=${encodeURIComponent('Authentication failed')}`);
 };
 
 // Get OAuth URLs
 const getOAuthUrls = (req, res) => {
-    const baseUrl = process.env.BACKEND_URL || 'http://localhost:4000';
-    
+    const baseUrl = process.env.URL_SERVER || 'http://localhost:4000';
+
     const oauthUrls = {
         google: `${baseUrl}/api/v1/auth/oauth/google`,
         facebook: `${baseUrl}/api/v1/auth/oauth/facebook`,

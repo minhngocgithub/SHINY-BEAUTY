@@ -2,6 +2,8 @@ const SaleProgram = require('../models/saleProgram.models');
 const Product = require('../models/product.models');
 const ProductBundle = require('../models/productBundle.models');
 const SaleProgramUtils = require('../utils/saleProgram.utils');
+const SaleProgramTrackingService = require('../services/saleProgramTracking.service');
+const { fixSaleProgramStringFields } = require('../migrations/fixSaleProgramFields');
 const { uploadImageCloudinary, deleteImageFromCloudinary } = require('../utils/upload.service');
 const slugify = require('slugify');
 
@@ -154,19 +156,47 @@ const getAllSalePrograms = async (req, res) => {
         } = req.query;
 
         const filter = {};
+        const now = new Date();
 
-        if (status && status !== 'all') {
-            filter.status = status;
+        // Handle dynamic status filtering
+        if (status && status !== 'all' && status !== '') {
+            switch (status) {
+                case 'active':
+                    filter.isActive = true;
+                    filter.startDate = { $lte: now };
+                    filter.$or = [
+                        { endDate: { $gte: now } },
+                        { endDate: null }
+                    ];
+                    break;
+                case 'scheduled':
+                    filter.isActive = true;
+                    filter.startDate = { $gt: now };
+                    break;
+                case 'expired':
+                    filter.endDate = { $lt: now };
+                    break;
+                case 'paused':
+                    filter.isActive = false;
+                    break;
+                case 'draft':
+                    filter.isActive = { $ne: true };
+                    break;
+                default:
+                    // For any other status values, use as-is
+                    filter.status = status;
+            }
         }
 
         if (type) {
             filter.type = type;
         }
 
-        if (search) {
+        if (search && search.trim()) {
             filter.$or = [
-                { title: new RegExp(search, 'i') },
-                { description: new RegExp(search, 'i') }
+                { title: new RegExp(search.trim(), 'i') },
+                { description: new RegExp(search.trim(), 'i') },
+                { shortDescription: new RegExp(search.trim(), 'i') }
             ];
         }
 
@@ -177,7 +207,7 @@ const getAllSalePrograms = async (req, res) => {
         const pageSize = Math.min(100, Math.max(1, parseInt(limit)));
         const skip = (currentPage - 1) * pageSize;
 
-        const [salePrograms, total] = await Promise.all([
+        const [rawPrograms, total] = await Promise.all([
             SaleProgram.find(filter)
                 .populate('createdBy', 'name email')
                 .populate('conditions.applicableProducts', 'name price')
@@ -185,9 +215,39 @@ const getAllSalePrograms = async (req, res) => {
                 .populate('conditions.applicableBundles', 'name bundlePrice')
                 .sort(sortObj)
                 .skip(skip)
-                .limit(pageSize),
+                .limit(pageSize)
+                .lean(), // Use lean() to get plain objects
             SaleProgram.countDocuments(filter)
         ]);
+
+        // Parse stringified fields (fix legacy data)
+        const salePrograms = rawPrograms.map(program => {
+            if (typeof program.benefits === 'string') {
+                try {
+                    program.benefits = JSON.parse(program.benefits);
+                } catch (e) {
+                    console.warn(`Failed to parse benefits for ${program._id}:`, e.message);
+                    program.benefits = {};
+                }
+            }
+            if (typeof program.conditions === 'string') {
+                try {
+                    program.conditions = JSON.parse(program.conditions);
+                } catch (e) {
+                    console.warn(`Failed to parse conditions for ${program._id}:`, e.message);
+                    program.conditions = {};
+                }
+            }
+            if (typeof program.displaySettings === 'string') {
+                try {
+                    program.displaySettings = JSON.parse(program.displaySettings);
+                } catch (e) {
+                    console.warn(`Failed to parse displaySettings for ${program._id}:`, e.message);
+                    program.displaySettings = {};
+                }
+            }
+            return program;
+        });
 
         res.status(200).json({
             success: true,
@@ -480,6 +540,40 @@ const updateSaleProgram = async (req, res) => {
                 message: 'Sale program not found'
             });
         }
+
+        // Parse stringified fields from FormData
+        if (typeof updateData.conditions === 'string') {
+            try {
+                updateData.conditions = JSON.parse(updateData.conditions);
+            } catch (e) {
+                console.error('Failed to parse conditions:', e);
+            }
+        }
+
+        if (typeof updateData.benefits === 'string') {
+            try {
+                updateData.benefits = JSON.parse(updateData.benefits);
+            } catch (e) {
+                console.error('Failed to parse benefits:', e);
+            }
+        }
+
+        if (typeof updateData.displaySettings === 'string') {
+            try {
+                updateData.displaySettings = JSON.parse(updateData.displaySettings);
+            } catch (e) {
+                console.error('Failed to parse displaySettings:', e);
+            }
+        }
+
+        if (typeof updateData.targeting === 'string') {
+            try {
+                updateData.targeting = JSON.parse(updateData.targeting);
+            } catch (e) {
+                console.error('Failed to parse targeting:', e);
+            }
+        }
+
         if (updateData.title && updateData.title !== saleProgram.title) {
             updateData.slug = slugify(updateData.title, { lower: true, strict: true });
         }
@@ -541,10 +635,17 @@ const updateSaleProgram = async (req, res) => {
 
     } catch (error) {
         console.error('Update sale program error:', error);
+        console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            errors: error.errors // Mongoose validation errors
+        });
+
         res.status(500).json({
             success: false,
-            message: 'Server error',
-            error: error.message
+            message: error.message || 'Server error',
+            error: error.name === 'ValidationError' ? error.errors : error.message
         });
     }
 }
@@ -769,7 +870,6 @@ const getSaleProgramAnalytics = async (req, res) => {
 const toggleSaleProgramStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { action } = req.body;
 
         const saleProgram = await SaleProgram.findById(id);
         if (!saleProgram) {
@@ -779,23 +879,26 @@ const toggleSaleProgramStatus = async (req, res) => {
             });
         }
 
-        if (action === 'pause') {
-            saleProgram.status = 'paused';
-        } else if (action === 'resume') {
+        // Toggle isActive field
+        saleProgram.isActive = !saleProgram.isActive;
+
+        // When activating, set status to 'active'
+        // When deactivating, set status to 'paused'
+        if (saleProgram.isActive) {
             saleProgram.status = 'active';
         } else {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid action. Use "pause" or "resume"'
-            });
+            saleProgram.status = 'paused';
         }
 
         await saleProgram.save();
 
         res.status(200).json({
             success: true,
-            message: `Sale program ${action}d successfully`,
-            saleProgram
+            message: `Sale program ${saleProgram.isActive ? 'activated' : 'paused'} successfully`,
+            data: {
+                saleProgram,
+                isActive: saleProgram.isActive
+            }
         })
 
     } catch (error) {
@@ -806,6 +909,77 @@ const toggleSaleProgramStatus = async (req, res) => {
         });
     }
 }
+
+// Recalculate stats for a specific program
+const recalculateProgramStats = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const program = await SaleProgram.findById(id);
+        if (!program) {
+            return res.status(404).json({
+                success: false,
+                message: 'Sale program not found'
+            });
+        }
+
+        const stats = await SaleProgramTrackingService.recalculateStats(id);
+
+        res.status(200).json({
+            success: true,
+            message: 'Stats recalculated successfully',
+            data: { stats }
+        });
+
+    } catch (error) {
+        console.error('Recalculate stats error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to recalculate stats'
+        });
+    }
+}
+
+// Recalculate stats for all programs
+const recalculateAllProgramStats = async (req, res) => {
+    try {
+        await SaleProgramTrackingService.recalculateAllStats();
+
+        res.status(200).json({
+            success: true,
+            message: 'All program stats recalculated successfully'
+        });
+
+    } catch (error) {
+        console.error('Recalculate all stats error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to recalculate all stats'
+        });
+    }
+}
+
+// Fix legacy data with stringified fields
+const fixLegacyDataFields = async (req, res) => {
+    try {
+        const result = await fixSaleProgramStringFields();
+
+        res.status(200).json({
+            success: true,
+            message: 'Legacy data fixed successfully',
+            data: result
+        });
+
+    } catch (error) {
+        console.error('Fix legacy data error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fix legacy data',
+            error: error.message
+        });
+    }
+}
+
 const uploadSaleProgramBanner = async (req, res) => {
     try {
         if (!req.file) {
@@ -857,5 +1031,8 @@ module.exports = {
     validateCouponCode,
     getSaleProgramAnalytics,
     toggleSaleProgramStatus,
-    uploadSaleProgramBanner
+    uploadSaleProgramBanner,
+    recalculateProgramStats,
+    recalculateAllProgramStats,
+    fixLegacyDataFields
 };

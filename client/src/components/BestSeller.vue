@@ -11,7 +11,7 @@
       <div
         class="text-[#5a4098] hover:underline hover:text-rose-600 hidden md:block"
       >
-        <router-link to="/products/sales">See more</router-link>
+        <router-link to="/shop/best-sellers">See more</router-link>
       </div>
     </div>
     <!-- end title header -->
@@ -114,7 +114,7 @@ const fetchChosenProducts = async () => {
   try {
     loading.value = true;
     error.value = null;
-    const res = await getBestSellerApi();
+    const res = await getBestSellerApi({ limit: 10 });
     if (res && res.data && Array.isArray(res.data.products)) {
       products.value = res.data.products;
     } else {

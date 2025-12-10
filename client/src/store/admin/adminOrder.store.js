@@ -67,12 +67,16 @@ export const useAdminOrderStore = defineStore('adminOrder', {
 
                 const response = await getAllOrdersAdmin(queryParams)
 
+                console.log('[AdminOrderStore] API Response:', response.data)
+
                 if (response.data.success) {
-                    this.allOrders = response.data.data || []
-                    this.totalOrders = response.data.pagination?.total || 0
-                    this.totalPages = response.data.pagination?.totalPages || 1
-                    this.currentPage = response.data.pagination?.page || 1
+                    this.allOrders = response.data.data?.orders || []
+                    this.totalOrders = response.data.data?.total || 0
+                    this.totalPages = response.data.data?.totalPages || 1
+                    this.currentPage = response.data.data?.currentPage || 1
                     this.lastUpdate = new Date()
+
+                    console.log('[AdminOrderStore] Loaded orders:', this.allOrders.length)
                 } else {
                     this.error = response.data.message || 'Failed to fetch orders'
                 }
@@ -92,7 +96,7 @@ export const useAdminOrderStore = defineStore('adminOrder', {
                 const response = await getPendingOrders()
 
                 if (response.data.success) {
-                    this.pendingOrders = response.data.data || []
+                    this.pendingOrders = response.data.data?.orders || []
                 }
             } catch (error) {
                 console.error('[AdminOrderStore] Fetch pending orders error:', error)

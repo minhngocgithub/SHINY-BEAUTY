@@ -87,94 +87,106 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { jwtDecode } from "jwt-decode";
+import { useAuthStore } from "../../store/auth.store";
+import { useLoyaltyStore } from "../../store/loyalty.store";
 
-export default {
-  name: "OAuthCallback",
-  setup() {
-    const router = useRouter();
-    const isProcessing = ref(true);
-    const isSuccess = ref(false);
-    const error = ref("");
+const router = useRouter();
+const authStore = useAuthStore();
+const loyaltyStore = useLoyaltyStore();
+const isProcessing = ref(true);
+const isSuccess = ref(false);
+const error = ref("");
 
-    const processOAuthCallback = async () => {
-      try {
-        // Kiểm tra xem có phải là error route không
-        if (window.location.pathname === "/oauth-error") {
-          const urlParams = new URLSearchParams(window.location.search);
-          const errorMessage =
-            urlParams.get("message") || "Đăng nhập OAuth thất bại";
-          error.value = errorMessage;
-          isProcessing.value = false;
-          return;
+const processOAuthCallback = async () => {
+  try {
+    // Kiểm tra xem có phải là error route không
+    if (window.location.pathname === "/oauth-error") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const errorMessage =
+        urlParams.get("message") || "Đăng nhập OAuth thất bại";
+      error.value = errorMessage;
+      isProcessing.value = false;
+      return;
+    }
+
+    // Lấy URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get("accessToken");
+    const refreshToken = urlParams.get("refreshToken");
+    const userData = urlParams.get("userData");
+
+    if (!accessToken || !refreshToken || !userData) {
+      throw new Error("Thiếu thông tin xác thực từ OAuth provider");
+    }
+
+    // Decode JWT để lấy thông tin
+    const decoded = jwtDecode(accessToken);
+    const user = JSON.parse(decodeURIComponent(userData));
+
+    // Tạo fullUser object giống như trong Login.vue
+    const fullUser = {
+      ...user,
+      exp: decoded.exp,
+      iat: decoded.iat,
+    };
+
+    // Lưu vào localStorage
+    localStorage.setItem("accessToken", accessToken);
+    localStorage.setItem("refreshToken", refreshToken);
+    localStorage.setItem("userInfo", JSON.stringify(fullUser));
+
+    // CẬP NHẬT AUTH STORE - quan trọng!
+    authStore.setAuthStore({ user: fullUser, isLoggedIn: true });
+
+    // Check for loyalty rewards nếu không phải admin
+    if (!decoded.isAdmin) {
+      setTimeout(async () => {
+        try {
+          await loyaltyStore.checkPendingRewards();
+        } catch (error) {
+          console.error("Failed to check loyalty rewards:", error);
         }
+      }, 1000);
+    }
 
-        // Lấy URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const accessToken = urlParams.get("accessToken");
-        const refreshToken = urlParams.get("refreshToken");
-        const userData = urlParams.get("userData");
+    // Xóa URL parameters
+    window.history.replaceState({}, document.title, window.location.pathname);
 
-        if (!accessToken || !refreshToken || !userData) {
-          throw new Error("Thiếu thông tin xác thực từ OAuth provider");
-        }
+    // Đánh dấu thành công
+    isSuccess.value = true;
+    isProcessing.value = false;
 
-        localStorage.setItem("accessToken", accessToken);
-        localStorage.setItem("refreshToken", refreshToken);
-
-        const user = JSON.parse(decodeURIComponent(userData));
-        localStorage.setItem("userInfo", JSON.stringify(user));
-
-        // Xóa URL parameters
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-
-        // Đánh dấu thành công
-        isSuccess.value = true;
-        isProcessing.value = false;
-
-        // Tự động redirect sau 3 giây
-        setTimeout(() => {
-          redirectToHome();
-        }, 3000);
-      } catch (err) {
-        console.error("OAuth Callback Error:", err);
-        error.value = err.message || "Xử lý đăng nhập OAuth thất bại";
-        isProcessing.value = false;
-      }
-    };
-
-    const redirectToHome = () => {
-      router.push("/");
-    };
-
-    const retryOAuth = () => {
-      router.push("/Register-Page");
-    };
-
-    const goToLogin = () => {
-      router.push("/");
-    };
-
-    onMounted(() => {
-      processOAuthCallback();
-    });
-
-    return {
-      isProcessing,
-      isSuccess,
-      error,
-      redirectToHome,
-      retryOAuth,
-      goToLogin,
-    };
-  },
+    // Tự động redirect sau 2 giây
+    setTimeout(() => {
+      redirectToHome(decoded.isAdmin);
+    }, 2000);
+  } catch (err) {
+    console.error("OAuth Callback Error:", err);
+    error.value = err.message || "Xử lý đăng nhập OAuth thất bại";
+    isProcessing.value = false;
+  }
 };
+
+const redirectToHome = (isAdmin = false) => {
+  // Force reload để đảm bảo tất cả components nhận được state mới
+  window.location.href = isAdmin ? "/admin" : "/";
+};
+
+const retryOAuth = () => {
+  router.push("/auth/login");
+};
+
+const goToLogin = () => {
+  router.push("/auth/login");
+};
+
+onMounted(() => {
+  processOAuthCallback();
+});
 </script>
 
 <style scoped>

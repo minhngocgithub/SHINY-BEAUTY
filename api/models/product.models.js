@@ -30,6 +30,7 @@ const productSchema = new Schema({
         required: [true, 'Please enter the product description']
     },
 
+    // ========== FEATURED SECTION ==========
     featured: {
         type: Boolean,
         default: false
@@ -76,6 +77,7 @@ const productSchema = new Schema({
         removedBy: { type: mongoose.Schema.ObjectId, ref: 'User' }
     }],
 
+    // ========== TRENDING SECTION ==========
     trendingScore: {
         type: Number,
         default: 0,
@@ -95,6 +97,7 @@ const productSchema = new Schema({
         default: false
     },
 
+    // ========== PRICING SECTION ==========
     price: {
         type: Number,
         required: [true, 'Please enter the product price'],
@@ -143,6 +146,7 @@ const productSchema = new Schema({
         default: 'percentage'
     },
 
+    // ========== FLASH SALE SECTION ==========
     flashSale: {
         isFlashSale: {
             type: Boolean,
@@ -160,16 +164,63 @@ const productSchema = new Schema({
         }
     },
 
+    // ========== INVENTORY SECTION (ENHANCED) ==========
     countInstock: {
         type: Number,
         required: [true, 'Please enter product quantity'],
         max: [9999999, 'Product quantity cannot exceed 7 digits'],
         default: 0
     },
+    reservedStock: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    lowStockThreshold: {
+        type: Number,
+        default: 10,
+        min: 0
+    },
+    reorderPoint: {
+        type: Number,
+        default: 20,
+        min: 0
+    },
     sold: {
         type: Number,
         default: 0
     },
+
+    // Inventory History for audit trail
+    inventoryHistory: [{
+        type: {
+            type: String,
+            enum: ['restock', 'sale', 'return', 'adjustment', 'reservation', 'release', 'confirmed'],
+            required: true
+        },
+        quantity: {
+            type: Number,
+            required: true
+        },
+        previousStock: Number,
+        newStock: Number,
+        reason: String,
+        orderId: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Order'
+        },
+        reservationId: String,
+        by: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User'
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+
+    // ========== RATINGS SECTION ==========
     ratings: {
         average: {
             type: Number,
@@ -181,7 +232,6 @@ const productSchema = new Schema({
             type: Number,
             default: 0
         },
-
     },
     totalRating: {
         type: Number,
@@ -193,6 +243,151 @@ const productSchema = new Schema({
     toObject: { virtuals: true }
 });
 
+// ========== VIRTUAL FIELDS ==========
+productSchema.virtual('availableStock').get(function () {
+    return Math.max(0, this.countInstock - (this.reservedStock || 0));
+});
+
+productSchema.virtual('stockStatus').get(function () {
+    if (this.countInstock === 0) return 'out_of_stock';
+    if (this.countInstock <= this.lowStockThreshold) return 'low_stock';
+    if (this.countInstock <= this.reorderPoint) return 'reorder_soon';
+    return 'in_stock';
+});
+
+productSchema.virtual('needsRestock').get(function () {
+    return this.countInstock <= this.reorderPoint;
+});
+
+// ========== PRE-SAVE HOOKS ==========
+productSchema.pre('save', function (next) {
+    // Auto-disable if out of stock
+    if (this.countInstock <= 0) {
+        this.isAvailable = false;
+    }
+
+    // Ensure reserved stock doesn't exceed actual stock
+    if (this.reservedStock > this.countInstock) {
+        this.reservedStock = this.countInstock;
+    }
+
+    next();
+});
+
+// ========== INVENTORY METHODS ==========
+
+// Check if product has enough stock
+productSchema.methods.hasStock = function (quantity) {
+    const available = this.countInstock - (this.reservedStock || 0);
+    return available >= quantity;
+};
+
+// Update stock with history tracking
+productSchema.methods.updateStock = function (quantity, type = 'adjustment', metadata = {}) {
+    const previousStock = this.countInstock;
+    this.countInstock += quantity;
+
+    // Add to history
+    this.inventoryHistory.push({
+        type,
+        quantity,
+        previousStock,
+        newStock: this.countInstock,
+        reason: metadata.reason,
+        orderId: metadata.orderId,
+        reservationId: metadata.reservationId,
+        by: metadata.by,
+        createdAt: new Date()
+    });
+
+    return this;
+};
+
+// Reserve stock (called by InventoryService)
+productSchema.methods.reserveStock = function (quantity, metadata = {}) {
+    if (!this.hasStock(quantity)) {
+        throw new Error(`Insufficient stock. Available: ${this.availableStock}, Requested: ${quantity}`);
+    }
+
+    const previousReserved = this.reservedStock || 0;
+    this.reservedStock = previousReserved + quantity;
+
+    // Track reservation in history
+    this.inventoryHistory.push({
+        type: 'reservation',
+        quantity: quantity,
+        previousStock: this.countInstock,
+        newStock: this.countInstock,
+        reservationId: metadata.reservationId,
+        by: metadata.by,
+        createdAt: new Date()
+    });
+
+    return this;
+};
+
+// Release reserved stock (cancel order)
+productSchema.methods.releaseReservedStock = function (quantity, metadata = {}) {
+    this.reservedStock = Math.max(0, (this.reservedStock || 0) - quantity);
+
+    this.inventoryHistory.push({
+        type: 'release',
+        quantity: quantity,
+        previousStock: this.countInstock,
+        newStock: this.countInstock,
+        reservationId: metadata.reservationId,
+        reason: metadata.reason || 'Reservation cancelled',
+        createdAt: new Date()
+    });
+
+    return this;
+};
+
+// Confirm sale (deduct stock after payment)
+productSchema.methods.confirmSale = function (quantity, metadata = {}) {
+    // Deduct from both reserved and actual stock
+    this.reservedStock = Math.max(0, (this.reservedStock || 0) - quantity);
+    this.countInstock -= quantity;
+    this.sold += quantity;
+
+    this.inventoryHistory.push({
+        type: 'confirmed',
+        quantity: -quantity,
+        previousStock: this.countInstock + quantity,
+        newStock: this.countInstock,
+        orderId: metadata.orderId,
+        reservationId: metadata.reservationId,
+        createdAt: new Date()
+    });
+
+    return this;
+};
+
+// Process return
+productSchema.methods.processReturn = function (quantity, metadata = {}) {
+    this.countInstock += quantity;
+    this.sold = Math.max(0, this.sold - quantity);
+
+    this.inventoryHistory.push({
+        type: 'return',
+        quantity: quantity,
+        previousStock: this.countInstock - quantity,
+        newStock: this.countInstock,
+        orderId: metadata.orderId,
+        reason: metadata.reason,
+        by: metadata.by,
+        createdAt: new Date()
+    });
+
+    return this;
+};
+
+// Restock product
+productSchema.methods.restock = function (quantity, metadata = {}) {
+    return this.updateStock(quantity, 'restock', metadata);
+};
+
+// ========== FEATURED METHODS ==========
 productSchema.methods.setFeatured = function (options = {}) {
     const { order = 0, expiry = null, reason = 'Manual feature', by = null, type = 'homepage' } = options;
 
@@ -237,6 +432,7 @@ productSchema.methods.removeFeatured = function (reason = 'Manual removal', by =
     return this;
 };
 
+// ========== TRENDING METHODS ==========
 productSchema.methods.calculateTrendingScore = function () {
     const now = new Date();
     const ageInDays = (now - this.createdAt) / (1000 * 60 * 60 * 24);
@@ -287,6 +483,8 @@ productSchema.methods.getFeaturedPerformance = function () {
         metrics: this.featuredMetrics
     };
 };
+
+// ========== REVIEW METHODS ==========
 productSchema.statics.updateRatingsFromReviews = async function (productId) {
     try {
         const Review = require('./review.models');
@@ -294,7 +492,7 @@ productSchema.statics.updateRatingsFromReviews = async function (productId) {
         const stats = await Review.aggregate([
             {
                 $match: {
-                    product: mongoose.Types.ObjectId(productId),
+                    product: new mongoose.Types.ObjectId(productId),
                     reviewType: 'rating',
                     status: 'published'
                 }
@@ -332,7 +530,6 @@ productSchema.statics.updateRatingsFromReviews = async function (productId) {
 
 productSchema.methods.getWithReviewSummary = async function () {
     const Review = require('./review.models');
-
     const reviewStats = await Review.getProductStats(this._id);
 
     return {
@@ -349,6 +546,13 @@ productSchema.methods.hasReviews = async function () {
     });
     return count > 0;
 };
+
+// ========== INDEXES ==========
+productSchema.index({ countInstock: 1 });
+productSchema.index({ reservedStock: 1 });
+productSchema.index({ countInstock: 1, sold: -1 });
+productSchema.index({ stockStatus: 1 });
+productSchema.index({ needsRestock: 1 });
 
 applyMiddleware(productSchema);
 

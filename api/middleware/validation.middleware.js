@@ -1,11 +1,5 @@
 const logger = require('../config/logger');
 
-/**
- * Joi Validation Middleware Factory
- * @param {Joi.Schema} schema - Joi validation schema
- * @param {String} property - Request property to validate ('body', 'query', 'params')
- * @returns {Function} Express middleware function
- */
 const validate = (schema, property = 'body') => {
     return (req, res, next) => {
         const { error, value } = schema.validate(req[property], {
@@ -46,9 +40,6 @@ const validate = (schema, property = 'body') => {
     };
 };
 
-/**
- * Validate Request Body
- */
 const validateBody = (schema) => validate(schema, 'body');
 
 /**

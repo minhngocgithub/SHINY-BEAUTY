@@ -8,7 +8,7 @@
 const Queue = require('bull');
 const Campaign = require('../models/campaign.models');
 const CampaignService = require('../services/campaign.service');
-const nodemailer = require('nodemailer');
+const transporter = require('../config/nodemailer'); // Use centralized email config
 const logger = require('../config/logger');
 const emailTemplates = require('../templates/campaigns');
 
@@ -25,17 +25,6 @@ const campaignQueue = new Queue('campaigns', REDIS_URL, {
         },
         removeOnComplete: 100, // Keep last 100 completed jobs
         removeOnFail: 200      // Keep last 200 failed jobs
-    }
-});
-
-// Email transporter
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
     }
 });
 
@@ -154,8 +143,11 @@ campaignQueue.process('send-batch', async (job, done) => {
                     const emailSent = await sendEmail(campaign, user);
                     if (emailSent) {
                         results.sent++;
+                        // Email sent successfully - increment delivered count
+                        await campaign.incrementDelivered();
                     } else {
                         results.failed++;
+                        await campaign.incrementFailed();
                     }
                 }
 
@@ -164,7 +156,7 @@ campaignQueue.process('send-batch', async (job, done) => {
                     await sendNotification(campaign, user);
                 }
 
-                // Update campaign stats
+                // Update sent count (attempted send)
                 await campaign.incrementSent();
 
             } catch (error) {
@@ -217,14 +209,31 @@ async function sendEmail(campaign, user) {
         };
 
         // Generate HTML
-        const html = template(templateData);
+        let html = template(templateData);
+
+        // Add tracking pixel for open tracking
+        const trackingPixelUrl = `${process.env.URL_SERVER || 'http://localhost:4000'}/api/v1/campaigns/${campaign._id}/track/open?u=${user._id}`;
+        const trackingPixel = `<img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;" />`;
+
+        // Insert tracking pixel before closing body tag
+        html = html.replace('</body>', `${trackingPixel}</body>`);
+
+        // Wrap links with click tracking (if actionUrl exists in content)
+        if (campaign.emailContent.actionUrl) {
+            const clickTrackingUrl = `${process.env.URL_SERVER || 'http://localhost:4000'}/api/v1/campaigns/${campaign._id}/track/click?u=${user._id}&url=${encodeURIComponent(campaign.emailContent.actionUrl)}`;
+            html = html.replace(new RegExp(campaign.emailContent.actionUrl, 'g'), clickTrackingUrl);
+        }
+
+        // Replace unsubscribe URL
+        const unsubscribeUrl = `${process.env.CLIENT_URL}/unsubscribe?user=${user._id}`;
+        html = html.replace('{{unsubscribeUrl}}', unsubscribeUrl);
 
         // Send email
         const mailOptions = {
-            from: `"Shiny Beauty" <${process.env.EMAIL_USER}>`,
+            from: `"Shiny Beauty" <${process.env.EMAIL_NAME}>`,
             to: user.email,
             subject: campaign.subject,
-            html: html.replace('{{unsubscribeUrl}}', `${process.env.FRONTEND_URL}/unsubscribe?user=${user._id}`)
+            html: html
         };
 
         await transporter.sendMail(mailOptions);

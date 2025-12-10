@@ -14,6 +14,15 @@ const {
   canEditReview
 } = require('../middleware/review.middleware')
 
+// PUBLIC: Get testimonials (5-star reviews for homepage)
+router.get('/testimonials', reviewController.getTestimonials)
+
+// ADMIN: Get all reviews with filtering and pagination
+router.get('/admin/all', authenticate, authorizeAdmin, reviewController.getAllReviewsForAdmin)
+
+// ADMIN: Bulk moderate reviews
+router.post('/admin/bulk-moderate', authenticate, authorizeAdmin, reviewController.bulkModerateReviews)
+
 router.get('/product/:productId', reviewController.getReviewsByProduct)
 router.get('/products/:productId/reviews', reviewController.getReviewsByProduct)
 

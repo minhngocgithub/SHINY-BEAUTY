@@ -37,7 +37,7 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
+            ></path>
           </svg>
           <p class="text-sm text-gray-600 dark:text-gray-400">{{ mapError }}</p>
         </div>
@@ -50,16 +50,22 @@
     >
       <div class="space-y-2 text-xs">
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
-          <span class="text-gray-700 dark:text-gray-300">Shipper Location</span>
+          <div class="w-4 h-4 bg-orange-500 rounded"></div>
+          <span class="text-gray-700 dark:text-gray-300">Warehouse Origin</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+          <div class="w-4 h-4 bg-blue-500 rounded-full"></div>
+          <span class="text-gray-700 dark:text-gray-300"
+            >Current Location (Truck)</span
+          >
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 bg-green-500 rounded-full"></div>
           <span class="text-gray-700 dark:text-gray-300">Delivery Address</span>
         </div>
-        <div v-if="route" class="flex items-center gap-2">
+        <div v-if="route && route.length > 0" class="flex items-center gap-2">
           <div class="w-8 h-0.5 bg-blue-600"></div>
-          <span class="text-gray-700 dark:text-gray-300">Delivery Route</span>
+          <span class="text-gray-700 dark:text-gray-300">Route</span>
         </div>
       </div>
     </div>
@@ -82,13 +88,13 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-            />
+            ></path>
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
               d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-            />
+            ></path>
           </svg>
           <span class="font-semibold text-gray-900 dark:text-white">{{
             distanceInfo.distance
@@ -106,11 +112,38 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
+            ></path>
           </svg>
-          <span class="font-semibold text-gray-900 dark:text-white">{{
+          <span class="text-gray-700 dark:text-gray-300">{{
             distanceInfo.duration
           }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Location Accuracy Notice -->
+    <div
+      class="absolute z-10 px-3 py-2 m-4 text-xs bg-yellow-50 border border-yellow-200 rounded-lg shadow-lg bottom-2 right-2 dark:bg-yellow-900/30 dark:border-yellow-700"
+    >
+      <div class="flex items-start gap-2">
+        <svg
+          class="w-4 h-4 mt-0.5 text-yellow-600 dark:text-yellow-500 flex-shrink-0"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <div>
+          <p class="font-semibold text-yellow-800 dark:text-yellow-400">
+            Approximate Location
+          </p>
+          <p class="mt-0.5 text-yellow-700 dark:text-yellow-500">
+            Delivery pin shows city center, not exact address
+          </p>
         </div>
       </div>
     </div>
@@ -134,327 +167,380 @@
           stroke-linejoin="round"
           stroke-width="2"
           d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-        />
+        ></path>
       </svg>
     </button>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, onUnmounted } from "vue";
-import { Loader } from "@googlemaps/js-api-loader";
+import { ref, onMounted, watch, nextTick, computed } from "vue";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
+// Fix Leaflet default marker icons
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+// Props
 const props = defineProps({
-  shipperLocation: {
+  origin: {
     type: Object,
-    default: null,
+    required: true,
+    validator: (val) => val && val.lat && val.lng,
   },
   destination: {
     type: Object,
     required: true,
+    validator: (val) => val && val.lat && val.lng,
+  },
+  currentLocation: {
+    type: Object,
+    default: null,
   },
   route: {
     type: Array,
-    default: null,
-  },
-  orderStatus: {
-    type: String,
-    default: "pending",
+    default: () => [],
   },
 });
 
+// Emits
 const emit = defineEmits(["location-updated"]);
 
+// Refs
 const mapContainer = ref(null);
 const map = ref(null);
-const shipperMarker = ref(null);
-const destinationMarker = ref(null);
-const routePolyline = ref(null);
 const mapLoading = ref(true);
 const mapError = ref(null);
 const refreshing = ref(false);
-const distanceInfo = ref(null);
 
-// Google Maps API Key (should be in .env file)
-const GOOGLE_MAPS_API_KEY =
-  import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE";
+const originMarker = ref(null);
+const currentMarker = ref(null);
+const destinationMarker = ref(null);
+const routePolyline = ref(null);
 
-const initMap = async () => {
+// Computed
+const distanceInfo = computed(() => {
+  if (!props.currentLocation || !props.destination) return null;
+
+  const current = props.currentLocation || props.origin;
+  const distance = calculateDistance(
+    current.lat,
+    current.lng,
+    props.destination.lat,
+    props.destination.lng
+  );
+
+  return {
+    distance: `${distance.toFixed(1)} km`,
+    duration: `~${Math.ceil(distance / 50)} hours`,
+  };
+});
+
+// Methods
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+async function initMap() {
   try {
     mapLoading.value = true;
     mapError.value = null;
 
-    // Load Google Maps API
-    const loader = new Loader({
-      apiKey: GOOGLE_MAPS_API_KEY,
-      version: "weekly",
-      libraries: ["places", "geometry"],
-    });
+    await nextTick();
 
-    const google = await loader.load();
-
-    // Default center (Vietnam)
-    let center = { lat: 21.0285, lng: 105.8542 }; // Hanoi
-
-    // Get destination coordinates from address
-    if (props.destination) {
-      const geocoded = await geocodeAddress(
-        `${props.destination.address}, ${props.destination.ward}, ${props.destination.district}, ${props.destination.city}`
-      );
-      if (geocoded) {
-        center = geocoded;
-      }
+    if (!mapContainer.value) {
+      throw new Error("Map container not found");
     }
 
-    // Initialize map
-    map.value = new google.maps.Map(mapContainer.value, {
-      center: center,
-      zoom: 13,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
+    const currentLoc = props.currentLocation || props.origin;
+
+    // Initialize Leaflet map
+    map.value = L.map(mapContainer.value, {
       zoomControl: true,
-      styles: [
-        {
-          featureType: "poi",
-          elementType: "labels",
-          stylers: [{ visibility: "off" }],
-        },
-      ],
-    });
+      scrollWheelZoom: true,
+    }).setView([currentLoc.lat, currentLoc.lng], 13);
 
-    // Add destination marker
-    addDestinationMarker(center);
+    // Add OpenStreetMap tiles
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map.value);
 
-    // Add shipper marker if location available
-    if (
-      props.shipperLocation &&
-      props.shipperLocation.lat &&
-      props.shipperLocation.lng
-    ) {
-      addShipperMarker({
-        lat: props.shipperLocation.lat,
-        lng: props.shipperLocation.lng,
-      });
-      fitBounds();
-    }
-
-    // Draw route if available
-    if (props.route && props.route.length > 0) {
-      drawRoute(props.route);
-    }
+    // Add markers and route
+    addMarkers();
+    drawRoute();
 
     mapLoading.value = false;
   } catch (error) {
-    console.error("Failed to load Google Maps:", error);
-    mapError.value =
-      "Failed to load map. Please check your internet connection.";
+    console.error("Failed to load map:", error);
+    mapError.value = "Failed to load map. Please try again.";
     mapLoading.value = false;
   }
-};
+}
 
-const geocodeAddress = async (address) => {
-  try {
-    const geocoder = new google.maps.Geocoder();
-    const result = await geocoder.geocode({ address });
-
-    if (result.results && result.results.length > 0) {
-      const location = result.results[0].geometry.location;
-      return { lat: location.lat(), lng: location.lng() };
-    }
-  } catch (error) {
-    console.error("Geocoding failed:", error);
-  }
-  return null;
-};
-
-const addDestinationMarker = (position) => {
+function addMarkers() {
   if (!map.value) return;
 
-  // Custom destination marker (green)
-  destinationMarker.value = new google.maps.Marker({
-    position,
-    map: map.value,
-    title: "Delivery Address",
-    icon: {
-      path: google.maps.SymbolPath.CIRCLE,
-      scale: 12,
-      fillColor: "#10B981",
-      fillOpacity: 1,
-      strokeColor: "#FFFFFF",
-      strokeWeight: 3,
-    },
-    animation: google.maps.Animation.DROP,
-  });
-
-  // Info window
-  const infoWindow = new google.maps.InfoWindow({
-    content: `
-      <div class="p-2">
-        <h3 class="font-semibold text-gray-900">Delivery Address</h3>
-        <p class="mt-1 text-sm text-gray-600">${props.destination.fullName}</p>
-        <p class="text-xs text-gray-500">${props.destination.address}</p>
+  // 1. Origin/Warehouse marker (orange warehouse icon)
+  const originIcon = L.divIcon({
+    className: "custom-div-icon",
+    html: `
+      <div style="position: relative;">
+        <div style="
+          width: 36px;
+          height: 36px;
+          background: #f97316;
+          border: 3px solid white;
+          border-radius: 8px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <svg style="width: 20px; height: 20px;" fill="white" viewBox="0 0 24 24">
+            <path d="M21 16V8c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zm-11 0H5V8h5v8zm7-8v8h-5V8h5zM3 4h18v2H3z"/>
+          </svg>
+        </div>
+        <div style="
+          position: absolute;
+          bottom: -10px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 10px solid transparent;
+          border-right: 10px solid transparent;
+          border-top: 14px solid #f97316;
+        "></div>
       </div>
     `,
+    iconSize: [36, 50],
+    iconAnchor: [18, 50],
   });
 
-  destinationMarker.value.addListener("click", () => {
-    infoWindow.open(map.value, destinationMarker.value);
-  });
-};
+  originMarker.value = L.marker([props.origin.lat, props.origin.lng], {
+    icon: originIcon,
+  }).addTo(map.value);
 
-const addShipperMarker = (position) => {
-  if (!map.value) return;
+  originMarker.value.bindPopup(`
+    <div class="p-2">
+      <h3 class="text-sm font-semibold">📦 Warehouse Origin</h3>
+      <p class="mt-1 text-xs text-gray-600">${
+        props.origin.address || "Warehouse - Thuong Tin, Hanoi"
+      }</p>
+    </div>
+  `);
 
-  // Remove old marker if exists
-  if (shipperMarker.value) {
-    shipperMarker.value.setMap(null);
-  }
-
-  // Custom shipper marker (blue with delivery truck icon)
-  shipperMarker.value = new google.maps.Marker({
-    position,
-    map: map.value,
-    title: "Shipper Location",
-    icon: {
-      path: "M17.5,14.5V9h-3V7.5a.5.5,0,0,0-.5-.5H2.5a.5.5,0,0,0-.5.5v7a1.5,1.5,0,0,0,1.5,1.5h.55a2,2,0,1,0,3.9,0h4.1a2,2,0,1,0,3.9,0h.55A1.5,1.5,0,0,0,18,14.5ZM6,16a1,1,0,1,1,1-1A1,1,0,0,1,6,16Zm8,0a1,1,0,1,1,1-1A1,1,0,0,1,14,16Zm.5-6.5h2.43L15.5,12V9.5Z",
-      fillColor: "#3B82F6",
-      fillOpacity: 1,
-      strokeColor: "#FFFFFF",
-      strokeWeight: 2,
-      scale: 1.5,
-      anchor: new google.maps.Point(10, 10),
-    },
-    animation: google.maps.Animation.BOUNCE,
-  });
-
-  // Stop animation after 2 seconds
-  setTimeout(() => {
-    if (shipperMarker.value) {
-      shipperMarker.value.setAnimation(null);
-    }
-  }, 2000);
-
-  // Info window
-  const infoWindow = new google.maps.InfoWindow({
-    content: `
-      <div class="p-2">
-        <h3 class="font-semibold text-blue-600">Shipper Location</h3>
-        <p class="mt-1 text-xs text-gray-500">Last updated: ${new Date().toLocaleTimeString()}</p>
+  // 2. Destination marker (green location pin)
+  const destinationIcon = L.divIcon({
+    className: "custom-div-icon",
+    html: `
+      <div style="position: relative;">
+        <div style="
+          width: 36px;
+          height: 36px;
+          background: #10b981;
+          border: 3px solid white;
+          border-radius: 50% 50% 50% 0;
+          transform: rotate(-45deg);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <svg style="
+            width: 18px; 
+            height: 18px;
+            transform: rotate(45deg);
+          " fill="white" viewBox="0 0 24 24">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
       </div>
     `,
+    iconSize: [36, 48],
+    iconAnchor: [18, 48],
   });
 
-  shipperMarker.value.addListener("click", () => {
-    infoWindow.open(map.value, shipperMarker.value);
+  destinationMarker.value = L.marker(
+    [props.destination.lat, props.destination.lng],
+    { icon: destinationIcon }
+  ).addTo(map.value);
+
+  destinationMarker.value.bindPopup(`
+    <div class="p-2">
+      <h3 class="text-sm font-semibold">🏠 Delivery Address</h3>
+      <p class="mt-1 text-xs text-gray-600">${
+        props.destination.address || "Destination"
+      }</p>
+    </div>
+  `);
+
+  // 3. Current location marker (blue truck icon, animated)
+  const currentLoc = props.currentLocation || props.origin;
+
+  const currentIcon = L.divIcon({
+    className: "custom-div-icon",
+    html: `
+      <div class="current-marker" style="
+        width: 44px;
+        height: 44px;
+        background: #3b82f6;
+        border: 4px solid white;
+        border-radius: 50%;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        animation: pulse 2s infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <svg style="
+          width: 24px;
+          height: 24px;
+        " fill="white" viewBox="0 0 24 24">
+          <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+        </svg>
+      </div>
+    `,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 
-  // Calculate distance between shipper and destination
-  if (destinationMarker.value) {
-    calculateDistance(position, destinationMarker.value.getPosition());
-  }
-};
+  currentMarker.value = L.marker([currentLoc.lat, currentLoc.lng], {
+    icon: currentIcon,
+  }).addTo(map.value);
 
-const drawRoute = (routeCoordinates) => {
-  if (!map.value) return;
+  currentMarker.value.bindPopup(`
+    <div class="p-2">
+      <h3 class="text-sm font-semibold">🚚 Current Location</h3>
+      <p class="mt-1 text-xs text-gray-600">${
+        currentLoc.address || "In Transit"
+      }</p>
+    </div>
+  `);
+
+  // Fit bounds to show all markers
+  const bounds = L.latLngBounds([
+    [props.origin.lat, props.origin.lng],
+    [currentLoc.lat, currentLoc.lng],
+    [props.destination.lat, props.destination.lng],
+  ]);
+  map.value.fitBounds(bounds, { padding: [50, 50] });
+}
+
+function drawRoute() {
+  if (!map.value || !props.route || props.route.length < 2) return;
 
   // Remove old route if exists
   if (routePolyline.value) {
-    routePolyline.value.setMap(null);
+    map.value.removeLayer(routePolyline.value);
   }
 
-  const path = routeCoordinates.map((coord) => ({
-    lat: coord.lat,
-    lng: coord.lng,
-  }));
+  const routeCoords = props.route.map((point) => [point.lat, point.lng]);
 
-  routePolyline.value = new google.maps.Polyline({
-    path,
-    geodesic: true,
-    strokeColor: "#3B82F6",
-    strokeOpacity: 0.8,
-    strokeWeight: 4,
-    map: map.value,
+  routePolyline.value = L.polyline(routeCoords, {
+    color: "#3b82f6",
+    weight: 4,
+    opacity: 0.7,
+    smoothFactor: 1,
+  }).addTo(map.value);
+}
+
+function updateCurrentLocation() {
+  if (!currentMarker.value || !props.currentLocation) return;
+
+  const newLatLng = [props.currentLocation.lat, props.currentLocation.lng];
+  currentMarker.value.setLatLng(newLatLng);
+
+  // Smooth pan to new location
+  map.value.panTo(newLatLng, {
+    animate: true,
+    duration: 1,
   });
-};
+}
 
-const calculateDistance = (origin, destination) => {
-  const service = new google.maps.DistanceMatrixService();
-
-  service.getDistanceMatrix(
-    {
-      origins: [origin],
-      destinations: [destination],
-      travelMode: google.maps.TravelMode.DRIVING,
-    },
-    (response, status) => {
-      if (status === "OK" && response.rows[0].elements[0].status === "OK") {
-        const element = response.rows[0].elements[0];
-        distanceInfo.value = {
-          distance: element.distance.text,
-          duration: element.duration.text,
-        };
-      }
-    }
-  );
-};
-
-const fitBounds = () => {
-  if (!map.value || !shipperMarker.value || !destinationMarker.value) return;
-
-  const bounds = new google.maps.LatLngBounds();
-  bounds.extend(shipperMarker.value.getPosition());
-  bounds.extend(destinationMarker.value.getPosition());
-  map.value.fitBounds(bounds);
-
-  // Add padding
-  const padding = { top: 50, right: 50, bottom: 50, left: 50 };
-  map.value.panToBounds(bounds, padding);
-};
-
-const refreshLocation = () => {
+function refreshLocation() {
   refreshing.value = true;
   emit("location-updated");
 
   setTimeout(() => {
     refreshing.value = false;
   }, 1000);
-};
+}
 
-// Watch for shipper location changes
+// Watchers
 watch(
-  () => props.shipperLocation,
-  (newLocation) => {
-    if (newLocation && newLocation.lat && newLocation.lng && map.value) {
-      addShipperMarker({
-        lat: newLocation.lat,
-        lng: newLocation.lng,
-      });
-      fitBounds();
+  () => props.currentLocation,
+  (newLoc) => {
+    if (newLoc && map.value) {
+      updateCurrentLocation();
     }
   },
   { deep: true }
 );
 
-// Watch for route changes
 watch(
   () => props.route,
-  (newRoute) => {
-    if (newRoute && newRoute.length > 0 && map.value) {
-      drawRoute(newRoute);
+  () => {
+    if (map.value) {
+      drawRoute();
     }
   },
   { deep: true }
 );
 
+// Lifecycle
 onMounted(() => {
   initMap();
 });
-
-onUnmounted(() => {
-  // Clean up markers
-  if (shipperMarker.value) shipperMarker.value.setMap(null);
-  if (destinationMarker.value) destinationMarker.value.setMap(null);
-  if (routePolyline.value) routePolyline.value.setMap(null);
-});
 </script>
+
+<style scoped>
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.current-marker {
+  position: relative;
+}
+
+/* Dark mode support for Leaflet */
+:deep(.leaflet-container) {
+  background: #374151;
+}
+
+:deep(.dark .leaflet-control-attribution) {
+  background: rgba(31, 41, 55, 0.8);
+  color: #d1d5db;
+}
+
+:deep(.leaflet-popup-content-wrapper) {
+  border-radius: 0.5rem;
+}
+</style>

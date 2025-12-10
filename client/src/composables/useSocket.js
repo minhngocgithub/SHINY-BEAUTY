@@ -24,12 +24,16 @@ export function useSocket() {
             return false
         }
 
-        // Require authentication token
-        const token = authStore.token
+        // Require authentication token - check both authStore and localStorage
+        const token = authStore.token || localStorage.getItem('accessToken')
         if (!token) {
-            console.log('[useSocket] No auth token, skipping socket connection')
+            console.log('[useSocket] No auth token found in store or localStorage, skipping socket connection')
+            console.log('[useSocket] authStore.isLoggedIn:', authStore.isLoggedIn)
+            console.log('[useSocket] localStorage.accessToken:', !!localStorage.getItem('accessToken'))
             return false
         }
+
+        console.log('[useSocket] Token found, connecting to socket...')
 
         // Connect to socket server
         const socket = socketService.connect(token)
@@ -74,12 +78,21 @@ export function useSocket() {
 
     // Computed properties
     const isConnected = computed(() => connected.value)
-    const isAuthenticated = computed(() => authStore.isAuthenticated)
+    const isAuthenticated = computed(() => {
+        return authStore.isLoggedIn && !!localStorage.getItem('accessToken')
+    })
 
     // Auto-initialize on mount if user is authenticated
     onMounted(() => {
+        console.log('[useSocket] onMounted - isAuthenticated:', isAuthenticated.value)
+        console.log('[useSocket] onMounted - authStore.isLoggedIn:', authStore.isLoggedIn)
+        console.log('[useSocket] onMounted - has accessToken:', !!localStorage.getItem('accessToken'))
+
         if (isAuthenticated.value) {
+            console.log('[useSocket] Auto-initializing socket...')
             initSocket()
+        } else {
+            console.log('[useSocket] User not authenticated, skipping auto-init')
         }
     })
 

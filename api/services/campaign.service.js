@@ -10,11 +10,12 @@ class CampaignService {
      * @returns {Array} User IDs
      */
     static async getTargetUsers(campaign) {
-        let query = { isActive: true }; // Only active users
+        let query = {}; // Base query - get all users (since User model doesn't have isActive field)
 
         switch (campaign.targetSegment) {
             case 'ALL_USERS':
-                // No additional filters
+                // No additional filters - all users with valid email
+                query.email = { $exists: true, $ne: null };
                 break;
 
             case 'LOYALTY_TIER':

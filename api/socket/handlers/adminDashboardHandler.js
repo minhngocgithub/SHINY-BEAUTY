@@ -17,6 +17,8 @@ function setupAdminDashboard(io, socket) {
         try {
             // Join dashboard room for broadcast updates
             socket.join('admin:dashboard');
+            // Join orders room for new order notifications
+            socket.join('admin:orders');
 
             // Get initial dashboard data
             const dashboardData = await adminDashboardService.getDashboardStats();

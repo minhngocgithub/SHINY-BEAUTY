@@ -80,7 +80,7 @@
             </p>
           </div>
           <div class="text-sm font-medium text-gray-900 dark:text-white">
-            {{ formatCurrency(item.finalPrice * item.quantity) }}
+            {{ formatCurrency(item.finalPrice) }}
           </div>
         </div>
       </div>
@@ -97,16 +97,16 @@
         <div class="flex justify-between">
           <span class="text-gray-600 dark:text-gray-400">Subtotal</span>
           <span class="text-gray-900 dark:text-white">{{
-            formatCurrency(summary?.subtotal || 0)
+            formatCurrency(pricing.subtotal || 0)
           }}</span>
         </div>
         <div
-          v-if="(summary?.totalDiscount || 0) > 0"
+          v-if="(pricing.totalDiscount || 0) > 0"
           class="flex justify-between"
         >
           <span class="text-gray-600 dark:text-gray-400">Discount</span>
           <span class="text-red-600 dark:text-red-400"
-            >-{{ formatCurrency(summary?.totalDiscount || 0) }}</span
+            >-{{ formatCurrency(pricing.totalDiscount || 0) }}</span
           >
         </div>
         <div class="flex justify-between">
@@ -207,7 +207,6 @@ const emit = defineEmits(["edit", "update:termsAccepted"]);
 
 const termsAccepted = ref(false);
 
-// ✅ Use payment.service.js for consistent pricing
 const pricing = computed(() => {
   return calculateOrderPricing(
     props.cartItems || [],
@@ -219,6 +218,7 @@ const pricing = computed(() => {
       shippingAddress: props.shippingAddress,
       paymentMethod: props.paymentMethod,
       calculatedShipping: props.calculatedShipping, // Pass calculated shipping from API
+      summary: props.summary, // Pass backend summary for accurate calculations
     }
   );
 });

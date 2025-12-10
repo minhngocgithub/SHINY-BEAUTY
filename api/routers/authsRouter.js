@@ -34,6 +34,11 @@ router.put('/addresses/:addressId/default', authenticate, authsController.setDef
 // User Stats Route
 router.get('/stats', authenticate, authsController.getUserStats)
 
+// Loyalty Routes
+router.get('/loyalty/profile', authenticate, authsController.getLoyaltyProfile)
+router.post('/loyalty/redeem', authenticate, authsController.redeemLoyaltyPoints)
+router.post('/loyalty/sync', authenticate, authsController.syncLoyaltyData)
+
 // Notification Preferences Routes
 router.get('/notifications/preferences', authenticate, notificationController.getNotificationPreferences)
 router.put('/notifications/preferences', authenticate, notificationController.updateNotificationPreferences)

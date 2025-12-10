@@ -7,7 +7,7 @@
   >
     <!-- Loading State -->
     <div v-if="loading" class="relative mx-auto max-w-7xl">
-     <Loading />
+      <Loading />
     </div>
 
     <!-- No Products State -->
@@ -357,7 +357,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+} from "vue";
 import { useRouter } from "vue-router";
 import {
   getFeaturedProductApi,
@@ -367,9 +374,9 @@ import {
 import { refreshAOS } from "../../utils/aos";
 import Loading from "./Loading.vue";
 import { useSocket } from "../composables/useSocket";
-const socket = useSocket();
 
 const router = useRouter();
+const { connected, emit, on, off, initSocket } = useSocket();
 
 const props = defineProps({
   limit: {
@@ -464,40 +471,125 @@ const setCurrentProduct = (index) => {
   currentIndex.value = index;
   // Emit socket event for view
   const product = products.value[index];
-  if (product && product._id && socket.connected.value) {
-    socket.emit("featured:view", { productId: product._id });
+  console.log("🔍 [Featured] Setting product:", {
+    productId: product?._id,
+    productName: product?.name,
+    socketConnected: connected.value,
+  });
+  if (product && product._id) {
+    if (connected.value) {
+      console.log("📡 [Featured] Emitting featured:view");
+      emit("featured:view", { productId: product._id });
+    } else {
+      console.warn(
+        "⚠️ [Featured] Socket not connected, cannot emit view event"
+      );
+    }
   }
 };
 
 const viewProduct = (product) => {
-  if (product && product._id && socket.connected.value) {
-    socket.emit("featured:click", { productId: product._id });
-  }
+  console.log("👆 [Featured] Viewing product:", {
+    productId: product?._id,
+    productName: product?.name,
+    socketConnected: connected.value,
+  });
   if (product && product._id) {
+    if (connected.value) {
+      console.log("📡 [Featured] Emitting featured:click");
+      emit("featured:click", { productId: product._id });
+    } else {
+      console.warn(
+        "⚠️ [Featured] Socket not connected, cannot emit click event"
+      );
+    }
     router.push(`/products/${product._id}`);
   }
 };
 // Listen for real-time featured:update event
 let featuredUpdateHandler = null;
-onMounted(() => {
-  if (socket.connected.value) {
-    featuredUpdateHandler = (payload) => {
-      if (!payload || !payload.productId) return;
-      const idx = products.value.findIndex((p) => p._id === payload.productId);
-      if (idx !== -1 && products.value[idx].featuredMetrics) {
+onMounted(async () => {
+  console.log(
+    "🚀 [Featured] Component mounted, socket status:",
+    connected.value
+  );
+
+  // Ensure socket is initialized
+  if (!connected.value) {
+    console.log(
+      "🔌 [Featured] Socket not connected, attempting to initialize..."
+    );
+    const initialized = initSocket();
+    if (initialized) {
+      console.log("✅ [Featured] Socket initialized successfully");
+      // Wait a bit for connection to establish
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } else {
+      console.warn(
+        "⚠️ [Featured] Socket initialization failed (user may not be authenticated)"
+      );
+    }
+  }
+
+  console.log("🔌 [Featured] Socket status after init:", connected.value);
+
+  featuredUpdateHandler = (payload) => {
+    console.log("📥 [Featured] Received featured:update:", payload);
+    if (!payload || !payload.productId) return;
+    const idx = products.value.findIndex((p) => p._id === payload.productId);
+    if (idx !== -1) {
+      console.log("✅ [Featured] Updating product at index:", idx);
+      // Initialize featuredMetrics if it doesn't exist
+      if (!products.value[idx].featuredMetrics) {
+        products.value[idx].featuredMetrics = {
+          views: 0,
+          clicks: 0,
+          conversions: 0,
+          ctr: 0,
+          conversionRate: 0,
+        };
+      }
+      // Update with new metrics
+      if (payload.metrics) {
         products.value[idx].featuredMetrics = {
           ...products.value[idx].featuredMetrics,
           ...payload.metrics,
         };
       }
-    };
-    socket.on("featured:update", featuredUpdateHandler);
-  }
+      // Also update old fields for backward compatibility
+      if (payload.featuredViews !== undefined) {
+        products.value[idx].featuredViews = payload.featuredViews;
+      }
+      if (payload.featuredClicks !== undefined) {
+        products.value[idx].featuredClicks = payload.featuredClicks;
+      }
+      console.log(
+        "📊 [Featured] Updated metrics:",
+        products.value[idx].featuredMetrics
+      );
+    } else {
+      console.warn(
+        "⚠️ [Featured] Product not found in list:",
+        payload.productId
+      );
+    }
+  };
+
+  on("featured:update", featuredUpdateHandler);
+  console.log("👂 [Featured] Registered featured:update listener");
+
+  // Watch for socket connection changes
+  watch(connected, (isConnected) => {
+    console.log("🔄 [Featured] Socket connection changed:", isConnected);
+    if (isConnected) {
+      console.log("✅ [Featured] Socket connected! Re-registering listener...");
+      on("featured:update", featuredUpdateHandler);
+    }
+  });
 });
 onBeforeUnmount(() => {
-  if (featuredUpdateHandler) {
-    socket.off("featured:update", featuredUpdateHandler);
-  }
+  off("featured:update");
+  console.log("🧹 [Featured] Cleaned up featured:update listener");
 });
 
 const handleNext = () => {

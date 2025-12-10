@@ -11,6 +11,7 @@ const abandonedCartTemplate = require('./abandonedCartTemplate');
 const birthdayOfferTemplate = require('./birthdayOfferTemplate');
 const newsletterTemplate = require('./newsletterTemplate');
 const genericTemplate = require('./genericTemplate');
+const christmas2025Template = require('./christmas2025Template');
 
 module.exports = {
     flashSaleTemplate,
@@ -20,5 +21,6 @@ module.exports = {
     abandonedCartTemplate,
     birthdayOfferTemplate,
     newsletterTemplate,
-    genericTemplate
+    genericTemplate,
+    christmas2025Template
 };

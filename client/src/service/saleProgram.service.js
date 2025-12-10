@@ -32,8 +32,18 @@ export const createSaleProgramApi = async (formData) => {
   })
 }
 
-export const getAllSaleProgramsApi = async () => {
-  return await axiosApiInstance.get(`${BASE_SALE_PROGRAM_API}/admin/all`)
+export const getAllSaleProgramsApi = async (params = {}) => {
+  try {
+    const response = await axiosApiInstance.get(`${BASE_SALE_PROGRAM_API}/admin/all`, { params })
+    return response
+  } catch (error) {
+    console.error('❌ API Error:', {
+      status: error.response?.status,
+      message: error.response?.data?.message,
+      url: error.config?.url
+    })
+    throw error
+  }
 }
 
 export const updateSaleProgramApi = async (id, formData) => {
@@ -66,6 +76,18 @@ export const uploadSaleProgramBannerApi = async (formData) => {
   return await axiosApiInstance.post(`${BASE_SALE_PROGRAM_API}/admin/upload-banner`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
+}
+
+export const recalculateProgramStatsApi = async (id) => {
+  return await axiosApiInstance.post(`${BASE_SALE_PROGRAM_API}/admin/${id}/recalculate-stats`)
+}
+
+export const recalculateAllProgramStatsApi = async () => {
+  return await axiosApiInstance.post(`${BASE_SALE_PROGRAM_API}/admin/recalculate-all-stats`)
+}
+
+export const fixLegacyDataFieldsApi = async () => {
+  return await axiosApiInstance.post(`${BASE_SALE_PROGRAM_API}/admin/fix-legacy-data`)
 }
 
 // Utility functions

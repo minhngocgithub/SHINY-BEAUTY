@@ -1,5 +1,7 @@
 const User = require('../models/user.models')
 const Address = require('../models/address.models')
+const Order = require('../models/order.models')
+const Review = require('../models/review.models')
 const argon = require('argon2')
 const sendMail = require('../utils/sendMail')
 const crypto = require('crypto')
@@ -501,23 +503,48 @@ const handleOAuthLogin = async (req, res) => {
 };
 const getOAuthUrls = async (req, res) => {
   try {
-    const oauthUrls = {
-      google: process.env.GOOGLE_OAUTH_URL || null,
-      facebook: process.env.FACEBOOK_OAUTH_URL || null,
-      twitter: process.env.TWITTER_OAUTH_URL || null
-    }
-    const missingProviders = Object.entries(oauthUrls)
-      .filter(([_, url]) => !url)
-      .map(([provider]) => provider)
+    // Prefer explicit full URLs from env (e.g. GOOGLE_OAUTH_URL).
+    // If full URL not provided, try to build the provider's auth URL from client id env vars.
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
 
-    if (missingProviders.length > 0) {
-      console.warn(` Missing OAuth URLs for: ${missingProviders.join(', ')}`)
+    // Google
+    let googleUrl = process.env.GOOGLE_OAUTH_URL || null
+    if (!googleUrl) {
+      const gId = process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_OAUTH_URL_ID
+      if (gId) {
+        const redirect = encodeURIComponent(`${clientUrl}/auth/oauth/google/callback`)
+        const scope = encodeURIComponent('profile email')
+        googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${String(gId).trim()}&redirect_uri=${redirect}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`
+      }
     }
 
-    return res.status(200).json({
-      success: true,
-      oauthUrls
-    })
+    // Facebook
+    let facebookUrl = process.env.FACEBOOK_OAUTH_URL || null
+    if (!facebookUrl) {
+      const fId = process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_OAUTH_CLIENT_ID
+      if (fId) {
+        const redirect = encodeURIComponent(`${clientUrl}/auth/oauth/facebook/callback`)
+        const scope = encodeURIComponent('public_profile,email')
+        facebookUrl = `https://www.facebook.com/v12.0/dialog/oauth?client_id=${String(fId).trim()}&redirect_uri=${redirect}&response_type=code&scope=${scope}`
+      }
+    }
+
+    // Twitter
+    let twitterUrl = process.env.TWITTER_OAUTH_URL || null
+    if (!twitterUrl) {
+      const tId = process.env.TWITTER_CLIENT_ID || process.env.TWITTER_OAUTH_CLIENT_ID
+      if (tId) {
+        const redirect = encodeURIComponent(`${clientUrl}/auth/oauth/twitter/callback`)
+        const scope = encodeURIComponent('tweet.read users.read offline.access')
+        twitterUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${String(tId).trim()}&redirect_uri=${redirect}&scope=${scope}&state=state&code_challenge=challenge&code_challenge_method=plain`
+      }
+    }
+
+    const oauthUrls = { google: googleUrl, facebook: facebookUrl, twitter: twitterUrl }
+    const missingProviders = Object.entries(oauthUrls).filter(([_, url]) => !url).map(([p]) => p)
+    if (missingProviders.length > 0) console.warn(` Missing OAuth URLs for: ${missingProviders.join(', ')}`)
+
+    return res.status(200).json({ success: true, oauthUrls })
   } catch (error) {
     console.error('Get OAuth URLs error:', error)
     return res.status(500).json({
@@ -753,14 +780,14 @@ const setDefaultAddress = async (req, res) => {
 // ============ USER STATS ============
 const getUserStats = async (req, res) => {
   try {
-    const Order = require('../models/order.models')
-    const Review = require('../models/review.models')
-
     const userId = req.user._id
-
-    // Get order stats
     const orderStats = await Order.aggregate([
-      { $match: { user: userId } },
+      {
+        $match: {
+          user: userId,
+          status: { $ne: "CANCELLED" }  // Count all orders except cancelled
+        }
+      },
       {
         $group: {
           _id: null,
@@ -771,6 +798,24 @@ const getUserStats = async (req, res) => {
         }
       }
     ])
+
+    // Get delivered orders for separate tracking
+    const deliveredStats = await Order.aggregate([
+      {
+        $match: {
+          user: userId,
+          status: "DELIVERED"
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          deliveredOrders: { $sum: 1 },
+          deliveredSpent: { $sum: "$totalPrice" }
+        }
+      }
+    ])
+
     const reviewStats = await Review.aggregate([
       { $match: { user: userId } },
       {
@@ -781,6 +826,7 @@ const getUserStats = async (req, res) => {
         }
       }
     ])
+
     const user = await User.findById(userId).select('wishlistItems')
     const wishlistCount = user?.wishlistItems?.length || 0
 
@@ -788,6 +834,8 @@ const getUserStats = async (req, res) => {
       totalOrders: orderStats[0]?.totalOrders || 0,
       totalSpent: orderStats[0]?.totalSpent || 0,
       averageOrderValue: orderStats[0]?.averageOrderValue || 0,
+      deliveredOrders: deliveredStats[0]?.deliveredOrders || 0,
+      deliveredSpent: deliveredStats[0]?.deliveredSpent || 0,
       totalReviews: reviewStats[0]?.totalReviews || 0,
       averageRating: reviewStats[0]?.averageRating || 0,
       wishlistCount,
@@ -804,6 +852,157 @@ const getUserStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch user statistics'
+    })
+  }
+}
+
+// ============ LOYALTY PROGRAM ============
+const getLoyaltyProfile = async (req, res) => {
+  try {
+    const LoyaltyService = require('../utils/loyalty.utils')
+    const userId = req.user._id
+
+    const user = await User.findById(userId).select('loyaltyProfile name email createdAt')
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    const benefits = LoyaltyService.getTierBenefits(user.loyaltyProfile.tier)
+    const nextTierInfo = LoyaltyService.getNextTierInfo(user)
+
+    res.status(200).json({
+      success: true,
+      profile: {
+        tier: user.loyaltyProfile.tier,
+        tierName: benefits.name,
+        points: user.loyaltyProfile.points,
+        totalSpent: user.loyaltyProfile.totalSpent,
+        totalOrders: user.loyaltyProfile.totalOrders,
+        averageOrderValue: user.loyaltyProfile.averageOrderValue,
+        memberSince: user.loyaltyProfile.joinDate || user.createdAt,
+        lastPurchase: user.loyaltyProfile.lastPurchaseDate,
+        benefits: {
+          discountRate: benefits.discountRate,
+          freeShippingThreshold: benefits.freeShippingThreshold,
+          pointsMultiplier: benefits.pointsMultiplier,
+          earlyAccess: benefits.earlyAccess,
+          birthdayGift: benefits.birthdayGift,
+          exclusiveProducts: benefits.exclusiveProducts || false,
+          conciergeService: benefits.conciergeService || false
+        },
+        nextTier: nextTierInfo
+      }
+    })
+  } catch (error) {
+    console.error('Get loyalty profile error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch loyalty profile'
+    })
+  }
+}
+
+const redeemLoyaltyPoints = async (req, res) => {
+  try {
+    const { points } = req.body
+    const userId = req.user._id
+
+    if (!points || points <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid points amount'
+      })
+    }
+
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    if (user.loyaltyProfile.points < points) {
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient points. You have ${user.loyaltyProfile.points} points`
+      })
+    }
+
+    // Minimum redemption: 100 points
+    if (points < 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Minimum redemption is 100 points'
+      })
+    }
+
+    // Deduct points
+    user.loyaltyProfile.points -= points
+
+    // Calculate discount value (1 point = 1,000 VND)
+    const discountValue = points * 1000
+
+    await user.save()
+
+    res.status(200).json({
+      success: true,
+      message: 'Points redeemed successfully',
+      redeemed: {
+        points,
+        discountValue,
+        remainingPoints: user.loyaltyProfile.points
+      }
+    })
+  } catch (error) {
+    console.error('Redeem points error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to redeem points'
+    })
+  }
+}
+
+const syncLoyaltyData = async (req, res) => {
+  try {
+    const LoyaltyService = require('../utils/loyalty.utils')
+    const userId = req.user._id
+
+    // Sync user's loyalty data from existing orders
+    const updatedUser = await LoyaltyService.syncUserLoyaltyData(userId)
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    const benefits = LoyaltyService.getTierBenefits(updatedUser.loyaltyProfile.tier)
+    const nextTierInfo = LoyaltyService.getNextTierInfo(updatedUser)
+
+    res.status(200).json({
+      success: true,
+      message: 'Loyalty data synced successfully',
+      profile: {
+        tier: updatedUser.loyaltyProfile.tier,
+        tierName: benefits.name,
+        points: updatedUser.loyaltyProfile.points,
+        totalSpent: updatedUser.loyaltyProfile.totalSpent,
+        totalOrders: updatedUser.loyaltyProfile.totalOrders,
+        averageOrderValue: updatedUser.loyaltyProfile.averageOrderValue,
+        lastPurchase: updatedUser.loyaltyProfile.lastPurchaseDate,
+        nextTier: nextTierInfo
+      }
+    })
+  } catch (error) {
+    console.error('Sync loyalty data error:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to sync loyalty data'
     })
   }
 }
@@ -830,5 +1029,9 @@ module.exports = {
   deleteUserAddress,
   setDefaultAddress,
   // User Stats
-  getUserStats
+  getUserStats,
+  // Loyalty Program
+  getLoyaltyProfile,
+  redeemLoyaltyPoints,
+  syncLoyaltyData
 }

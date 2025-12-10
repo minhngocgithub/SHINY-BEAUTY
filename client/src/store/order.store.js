@@ -25,15 +25,15 @@ export const useOrderStore = defineStore('orderStore', () => {
     const orderCount = computed(() => orders.value.length)
 
     const pendingOrders = computed(() =>
-        orders.value.filter(order => order.status === 'pending')
+        orders.value.filter(order => String(order.status || '').toUpperCase() === 'PENDING')
     )
 
     const completedOrders = computed(() =>
-        orders.value.filter(order => order.status === 'delivered')
+        orders.value.filter(order => String(order.status || '').toUpperCase() === 'DELIVERED')
     )
 
     const cancelledOrders = computed(() =>
-        orders.value.filter(order => order.status === 'cancelled')
+        orders.value.filter(order => String(order.status || '').toUpperCase() === 'CANCELLED')
     )
 
     // Actions
@@ -205,12 +205,121 @@ export const useOrderStore = defineStore('orderStore', () => {
             }
         })
 
+        // Listen for order status changes from cron job
+        socket.value.on('order:status_changed', (data) => {
+            console.log('Order status changed (cron):', data)
+            if (currentOrder.value && currentOrder.value._id === data.orderId) {
+                currentOrder.value.status = data.newStatus
+                currentOrder.value.orderStatus = data.newStatus
+
+                // Update timeline if exists
+                if (data.message && currentOrder.value.timeline) {
+                    currentOrder.value.timeline.push({
+                        status: data.newStatus,
+                        message: data.message,
+                        timestamp: data.timestamp || new Date()
+                    })
+                }
+            }
+
+            // Update in orders list if present
+            const orderInList = orders.value.find(o => o._id === data.orderId)
+            if (orderInList) {
+                orderInList.status = data.newStatus
+                orderInList.orderStatus = data.newStatus
+            }
+
+            // Show browser notification
+            if (Notification.permission === 'granted') {
+                new Notification('Order Status Updated', {
+                    body: data.message || `Your order is now ${data.newStatus}`,
+                    icon: '/logo.png'
+                })
+            }
+        })
+
+        // Listen for user-specific status updates from cron job
+        socket.value.on('order:status_updated', (data) => {
+            console.log('Order status updated (user room):', data)
+            if (data.success && data.data) {
+                const { orderId, status, message } = data.data
+
+                // Update current order if viewing
+                if (currentOrder.value && currentOrder.value._id === orderId) {
+                    currentOrder.value.status = status
+                    currentOrder.value.orderStatus = status
+                }
+
+                // Update in orders list
+                const orderInList = orders.value.find(o => o._id === orderId)
+                if (orderInList) {
+                    orderInList.status = status
+                    orderInList.orderStatus = status
+                }
+
+                // Show notification
+                if (Notification.permission === 'granted') {
+                    new Notification('Order Update', {
+                        body: message || `Order status: ${status}`,
+                        icon: '/logo.png'
+                    })
+                }
+            }
+        })
+
+        // Listen for delivery reminder
+        socket.value.on('order:delivery_reminder', (data) => {
+            console.log('Delivery reminder:', data)
+            if (Notification.permission === 'granted') {
+                new Notification('Delivery Reminder', {
+                    body: data.data.message || 'Your order is arriving soon!',
+                    icon: '/logo.png'
+                })
+            }
+        })
+
         // Listen for shipper location updates
         socket.value.on(`order:${orderId}:location`, (data) => {
             console.log('Shipper location updated:', data)
             if (trackingData.value) {
                 trackingData.value.currentLocation = data.location
                 trackingData.value.lastUpdate = new Date().toISOString()
+            }
+        })
+
+        // Listen for location updates from order room
+        socket.value.on('order:location_updated', (data) => {
+            console.log('Location updated (order room):', data)
+            if (data.orderId === orderId && trackingData.value) {
+                trackingData.value.currentLocation = data.location
+                trackingData.value.lastUpdate = data.timestamp || new Date().toISOString()
+            }
+        })
+
+        // Listen for delivered event
+        socket.value.on('order:delivered', (data) => {
+            console.log('Order delivered:', data)
+            if (currentOrder.value && currentOrder.value._id === data.orderId) {
+                currentOrder.value.status = 'DELIVERED'
+                currentOrder.value.orderStatus = 'DELIVERED'
+                currentOrder.value.isDelivered = true
+                currentOrder.value.deliveredAt = data.deliveredAt || data.timestamp
+            }
+
+            // Update in orders list
+            const orderInList = orders.value.find(o => o._id === data.orderId)
+            if (orderInList) {
+                orderInList.status = 'DELIVERED'
+                orderInList.isDelivered = true
+                orderInList.deliveredAt = data.deliveredAt || data.timestamp
+            }
+
+            // Show notification
+            if (Notification.permission === 'granted') {
+                new Notification('Order Delivered! 🎉', {
+                    body: data.message || 'Your order has been delivered successfully',
+                    icon: '/logo.png'
+                })
             }
         })
 

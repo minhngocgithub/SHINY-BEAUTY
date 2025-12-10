@@ -180,7 +180,7 @@
               >
                 <button
                   @click="viewAllNotifications"
-                  class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  class="text-sm text-gray-700 bg-transparent hover:text-[#FFFF]"
                 >
                   View all
                 </button>

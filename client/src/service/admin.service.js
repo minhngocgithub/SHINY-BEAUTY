@@ -1,5 +1,4 @@
 import axiosApiInstance from "../../utils/api"
-
 const BASE_ADMIN_ORDER_API = "/order/admin"
 const BASE_ANALYTICS_API = "/analytics"
 const BASE_ANALYTIC_API = "/analytic"
@@ -88,12 +87,12 @@ export const getOrderStatistics = async (params = {}) => {
   return await axiosApiInstance.get(`${BASE_ADMIN_ORDER_API}/statistics`, { params })
 }
 
-export const getDashboardAnalytics = async () => {
-  return await axiosApiInstance.get(`${BASE_ANALYTICS_API}/dashboard`)
+export const getDashboardAnalytics = async (params = {}) => {
+  return await axiosApiInstance.get(`${BASE_ANALYTICS_API}/dashboard`, { params })
 }
 
-export const getDashboardAnalyticsApi = async () => {
-  const response = await axiosApiInstance.get(`${BASE_ANALYTICS_API}/dashboard`)
+export const getDashboardAnalyticsApi = async (params = {}) => {
+  const response = await axiosApiInstance.get(`${BASE_ANALYTICS_API}/dashboard`, { params })
   return response.data
 }
 
@@ -153,10 +152,22 @@ export const getInventoryStatus = async (params = {}) => {
   return await axiosApiInstance.get(`${BASE_ANALYTIC_API}/low-stock`, { params })
 }
 
-export const getInventoryAnalyticsApi = async (params = {}) => {
-  const response = await axiosApiInstance.get(`${BASE_INVENTORY_API}/analytics`, {
+// export const getLowStockProductsApi = async (params = {}) => {
+//   const response = await axiosApiInstance.get(`${BASE_ANALYTICS_API}/low-stock`, {
+//     params
+//   })
+//   return response.data
+// }
+
+export const getTopProductsApi = async (params = {}) => {
+  const response = await axiosApiInstance.get(`${BASE_ANALYTICS_API}/top-products`, {
     params
   })
+  return response.data
+}
+
+export const getCategoryStatsApi = async () => {
+  const response = await axiosApiInstance.get(`${BASE_ANALYTICS_API}/categories`)
   return response.data
 }
 
@@ -202,41 +213,170 @@ export const toggleUserBanApi = async (userId, isBanned) => {
   )
   return response.data
 }
-
-export default {
-  getAllOrdersAdmin,
-  getPendingOrders,
-  getPendingOrdersApi,
-  getRecentOrders,
-  confirmOrderApi,
-  adminCancelOrderApi,
-  updateOrderStatusApi,
-  updateTrackingApi,
-  addAdminNotesApi,
-  getOrderStatistics,
-  getOrderStatisticsApi,
-
-  getDashboardAnalytics,
-  getDashboardAnalyticsApi,
-  getRevenueAnalytics,
-  getRevenueAnalyticsApi,
-  getSalesAnalytics,
-  getSalesAnalyticsApi,
-  getProductAnalytics,
-  getProductAnalyticsApi,
-  getUserAnalytics,
-  getUserAnalyticsApi,
-  getSalesTrend,
-  getProductViews,
-  getInventoryStatus,
-  getInventoryAnalyticsApi,
-
-  getTopProducts,
-
-  getTotalUsersCount,
-  getAllUsersApi,
-  getUserDetailApi,
-  updateUserApi,
-  deleteUserApi,
-  toggleUserBanApi
+export const getInventoryAnalyticsApi = async (params = {}) => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/analytics`,
+    { params }
+  )
+  return response.data
 }
+
+export const getLowStockProductsApi = async (params = {}) => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/low-stock`,
+    { params }
+
+  )
+  return response.data
+}
+
+export const getStockLevelApi = async (productId) => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/stock/${productId}`
+  )
+  return response.data
+}
+
+export const validateStockBulkApi = async (items) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/validate`,
+    items
+  )
+  return response.data
+}
+
+export const getBulkStockLevelsApi = async (productIds) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/stock/bulk`,
+    productIds
+  )
+  return response.data
+}
+
+export const reserveStockApi = async (data) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/reserve`,
+    data
+  )
+  return response.data
+}
+
+export const getReservationApi = async (reservationId) => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/reserve/${reservationId}`
+  )
+  return response.data
+}
+
+export const cancelReservationApi = async (reservationId) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/reserve/${reservationId}/cancel`
+  )
+  return response.data
+}
+
+export const confirmReservationApi = async (reservationId) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/reserve/${reservationId}/confirm`
+  )
+  return response.data
+}
+
+export const adjustStockApi = async (productId, data) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/adjust/${productId}`,
+    data
+  )
+  return response.data
+}
+
+export const restockProductApi = async (productId, data) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/restock/${productId}`,
+    data
+  )
+  return response.data
+}
+
+export const processReturnApi = async (productId, data) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/return/${productId}`,
+    data
+  )
+  return response.data
+}
+
+export const updateStockThresholdApi = async (productId, data) => {
+  const response = await axiosApiInstance.patch(
+    `${BASE_INVENTORY_API}/threshold/${productId}`,
+    data
+  )
+  return response.data
+}
+
+export const getStockHistoryApi = async (productId) => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/history/${productId}`
+  )
+  return response.data
+}
+
+export const getAllReservationsApi = async () => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/reservations`
+  )
+  return response.data
+}
+
+export const getExpiredReservationsApi = async () => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/reservations/expired`
+  )
+  return response.data
+}
+
+export const syncStockCacheApi = async () => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/sync-cache`
+  )
+  return response.data
+}
+
+export const refreshProductCacheApi = async (productId) => {
+  const response = await axiosApiInstance.post(
+    `${BASE_INVENTORY_API}/cache/refresh/${productId}`
+  )
+  return response.data
+}
+
+export const clearStockCacheApi = async () => {
+  const response = await axiosApiInstance.delete(
+    `${BASE_INVENTORY_API}/cache`
+  )
+  return response.data
+}
+
+export const getInventoryValuationApi = async (params = {}) => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/reports/valuation`,
+    { params }
+  )
+  return response.data
+}
+
+export const getStockMovementReportApi = async (params = {}) => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/reports/movements`,
+    { params }
+  )
+  return response.data
+}
+
+export const getRestockNeededApi = async (params = {}) => {
+  const response = await axiosApiInstance.get(
+    `${BASE_INVENTORY_API}/reports/restock-needed`,
+    { params }
+  )
+  return response.data
+}
+

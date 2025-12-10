@@ -6,10 +6,11 @@ const logger = require("../config/logger");
  */
 class OrderTrackingService {
     // Warehouse location (Ga Thường Tín, Hà Nội)
+    // Correct coordinates: 20.9954°N, 105.9033°E
     static WAREHOUSE = {
-        lat: 20.5873,
-        lng: 105.8589,
-        address: "Ga Thường Tín, Hà Nội",
+        lat: 20.9954,
+        lng: 105.9033,
+        address: "Ga Thường Tín, Thường Tín, Hà Nội, Việt Nam",
     };
 
     // Tracking status messages
@@ -72,16 +73,19 @@ class OrderTrackingService {
             timestamp: new Date(),
         };
 
+        // Only add location for statuses where it makes sense
         if (location) {
             event.location = location;
-        } else {
-            // Use warehouse as default location
+        } else if (['PENDING', 'CONFIRMED', 'PREPARING'].includes(status)) {
+            // Use warehouse for early statuses
             event.location = {
                 lat: this.WAREHOUSE.lat,
                 lng: this.WAREHOUSE.lng,
                 address: this.WAREHOUSE.address,
             };
         }
+        // For IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED - location should be provided by caller
+        // or we skip it to avoid confusion
 
         if (updatedBy) {
             event.updatedBy = updatedBy;

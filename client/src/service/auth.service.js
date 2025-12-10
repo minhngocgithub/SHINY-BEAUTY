@@ -74,7 +74,7 @@ export const changePasswordApi = async (data) => {
 // ==================== OAUTH ROUTES ====================
 
 export const getOAuthUrls = async () => {
-  return await axiosApiInstance.get(`${BASE_USER_API}/oauth/urls`)
+  return await axiosApiInstance.get(`/auth/oauth/urls`)
 }
 
 export const linkOAuthAccount = async (data) => {

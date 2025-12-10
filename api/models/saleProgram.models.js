@@ -23,7 +23,7 @@ const saleProgramSchema = new Schema({
         required: true
     },
     bannerImage: {
-        type: String 
+        type: String
     },
     landingPageUrl: {
         type: String // Đường dẫn landing page cho campaign (nếu có)
@@ -33,7 +33,7 @@ const saleProgramSchema = new Schema({
         type: String,
         enum: [
             'percentage_sale',
-            'fixed_amount_sale', 
+            'fixed_amount_sale',
             'flash_sale',
             'free_sample',
             'points_multiplier',
@@ -161,24 +161,24 @@ const saleProgramSchema = new Schema({
         updatedBy: { type: mongoose.Schema.ObjectId, ref: 'User' },
         changes: { type: Object }
     }]
-}, { 
+}, {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
 });
 
 // Virtual để check xem chương trình có active không
-saleProgramSchema.virtual('isCurrentlyActive').get(function() {
+saleProgramSchema.virtual('isCurrentlyActive').get(function () {
     const now = new Date();
     return this.isActive &&
-           this.startDate <= now &&
-           (!this.endDate || this.endDate >= now) &&
-           (!this.maxUsage || this.currentUsage < this.maxUsage) &&
-           this.status === 'active';
+        this.startDate <= now &&
+        (!this.endDate || this.endDate >= now) &&
+        (!this.maxUsage || this.currentUsage < this.maxUsage) &&
+        this.status === 'active';
 });
 
 // Virtual để tính thời gian còn lại
-saleProgramSchema.virtual('timeRemaining').get(function() {
+saleProgramSchema.virtual('timeRemaining').get(function () {
     if (!this.endDate) return null;
     const now = new Date();
     const remaining = this.endDate.getTime() - now.getTime();
@@ -190,7 +190,7 @@ saleProgramSchema.virtual('timeRemaining').get(function() {
 });
 
 // Method để validate điều kiện áp dụng
-saleProgramSchema.methods.validateConditions = function(cart, user) {
+saleProgramSchema.methods.validateConditions = function (cart, user) {
     const conditions = this.conditions;
     let errors = [];
     if (conditions.minOrderValue && cart.total < conditions.minOrderValue) {
@@ -212,7 +212,7 @@ saleProgramSchema.methods.validateConditions = function(cart, user) {
 };
 
 // Method để tính toán benefit
-saleProgramSchema.methods.calculateBenefit = function(cart) {
+saleProgramSchema.methods.calculateBenefit = function (cart) {
     const benefits = this.benefits;
     let result = {
         discount: 0,

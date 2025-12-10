@@ -90,17 +90,7 @@ export const buildOrderPayload = (checkoutItems, shippingAddress, paymentMethod,
   }
 }
 
-// ==================== PRICE CALCULATION ====================
 
-/**
- * Calculate order pricing with shipping rules support
- * @param {Array} checkoutItems - Items in checkout
- * @param {Number} loyaltyPoints - Loyalty points to use
- * @param {Number} couponDiscount - Coupon discount percentage
- * @param {Object} cartBenefits - Cart benefits from backend (includes freeShipping)
- * @param {Object} options - Additional options (userLoyaltyTier, shippingAddress, paymentMethod)
- * @returns {Object} Pricing breakdown
- */
 export const calculateOrderPricing = (
   checkoutItems,
   loyaltyPoints = 0,
@@ -108,11 +98,17 @@ export const calculateOrderPricing = (
   cartBenefits = {},
   options = {}
 ) => {
+  // Use backend summary if available, otherwise calculate from items
+  const backendSummary = options.summary || null
+
   // Calculate subtotal
-  const subtotal = checkoutItems.reduce((sum, item) => {
-    const price = item.product?.finalPrice || item.product?.salePrice || item.product?.price || 0
+  const subtotal = backendSummary?.subtotal ?? checkoutItems.reduce((sum, item) => {
+    const price = item.finalPrice || item.product?.finalPrice || item.product?.salePrice || item.product?.price || 0
     return sum + (price * (item.quantity || 1))
   }, 0)
+
+  // Get total discount from backend (includes sale program discounts)
+  const totalDiscount = backendSummary?.totalDiscount ?? 0
 
   // Calculate shipping using priority-based rules
   let shippingPrice = 0
@@ -165,8 +161,9 @@ export const calculateOrderPricing = (
     shippingReason = 'STANDARD_RATE'
   }
 
-  // Calculate tax (10%)
-  const taxPrice = subtotal * 0.1
+  // Calculate tax (10% of subtotal after discount)
+  const taxableAmount = Math.max(0, subtotal - totalDiscount)
+  const taxPrice = taxableAmount * 0.1
 
   // Loyalty points discount (1 point = $1 USD)
   const loyaltyDiscount = loyaltyPoints
@@ -174,11 +171,12 @@ export const calculateOrderPricing = (
   // Apply coupon discount percentage
   const couponDiscountAmount = couponDiscount > 0 ? (subtotal * couponDiscount) / 100 : 0
 
-  // Total
-  const totalPrice = Math.max(0, subtotal + shippingPrice + taxPrice - couponDiscountAmount - loyaltyDiscount)
+  // Total = Subtotal - TotalDiscount - CouponDiscount - LoyaltyDiscount + Shipping + Tax
+  const totalPrice = Math.max(0, subtotal - totalDiscount - couponDiscountAmount - loyaltyDiscount + shippingPrice + taxPrice)
 
   return {
     subtotal: parseFloat(subtotal.toFixed(2)),
+    totalDiscount: parseFloat(totalDiscount.toFixed(2)),
     shippingPrice: parseFloat(shippingPrice.toFixed(2)),
     taxPrice: parseFloat(taxPrice.toFixed(2)),
     loyaltyDiscount: parseFloat(loyaltyDiscount.toFixed(2)),
@@ -189,6 +187,7 @@ export const calculateOrderPricing = (
     // Formatted strings for display
     formatted: {
       subtotal: subtotal.toFixed(2),
+      totalDiscount: totalDiscount.toFixed(2),
       shippingPrice: shippingPrice.toFixed(2),
       taxPrice: taxPrice.toFixed(2),
       loyaltyDiscount: loyaltyDiscount.toFixed(2),

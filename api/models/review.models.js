@@ -128,65 +128,65 @@ reviewSchema.virtual('isFlagged').get(function () {
 reviewSchema.statics.hasUserReviewed = async function (userId, productId, reviewType = 'rating') {
     const review = await this.findOne({
         user: userId,
-        product: mongoose.Types.ObjectId(productId),
+        product: new mongoose.Types.ObjectId(productId),
         reviewType: reviewType
     });
     return !!review;
 }
 
-reviewSchema.statics.getProductStats = async function(productId) {
-  try {
-    const stats = await this.aggregate([
-      {
-        $match: {
-          product: new mongoose.Types.ObjectId(productId),
-          status: 'published',
-          reviewType: 'rating'
-        }
-      },
-      {
-        $group: {
-          _id: '$product',
-          avgRating: { $avg: '$rating' },
-          totalReviews: { $sum: 1 },
-          totalVerified: { $sum: { $cond: ['$verifiedPurchase', 1, 0] } },
-          ratingDistribution: {
-            $push: '$rating'
-          }
-        }
-      }
-    ])
+reviewSchema.statics.getProductStats = async function (productId) {
+    try {
+        const stats = await this.aggregate([
+            {
+                $match: {
+                    product: new mongoose.Types.ObjectId(productId),
+                    status: 'published',
+                    reviewType: 'rating'
+                }
+            },
+            {
+                $group: {
+                    _id: '$product',
+                    avgRating: { $avg: '$rating' },
+                    totalReviews: { $sum: 1 },
+                    totalVerified: { $sum: { $cond: ['$verifiedPurchase', 1, 0] } },
+                    ratingDistribution: {
+                        $push: '$rating'
+                    }
+                }
+            }
+        ])
 
-    return stats[0] || {
-      avgRating: 0,
-      totalReviews: 0,
-      totalVerified: 0,
-      ratingDistribution: []
+        return stats[0] || {
+            avgRating: 0,
+            totalReviews: 0,
+            totalVerified: 0,
+            ratingDistribution: []
+        }
+    } catch (error) {
+        console.error('Get Product Stats Error:', error)
+        throw error
     }
-  } catch (error) {
-    console.error('Get Product Stats Error:', error)
-    throw error
-  }
 }
 
-reviewSchema.statics.getFeaturedReviews = async function(productId, limit = 3) {
-  try {
-    const reviews = await this.find({
-      product: new mongoose.Types.ObjectId(productId),
-      status: 'published',
-      reviewType: 'rating',
-      images: { $exists: true, $ne: [] }
-    })
-      .populate('user', 'name avatar')
-      .sort({ rating: -1, helpful: -1, createdAt: -1 })
-      .limit(limit)
-      .lean()
+reviewSchema.statics.getFeaturedReviews = async function (productId, limit = 3) {
+    try {
+        const reviews = await this.find({
+            product: new mongoose.Types.ObjectId(productId),
+            status: 'published',
+            reviewType: 'rating',
+            images: { $exists: true, $ne: [] }
+        })
+            .populate('user', 'name avatar')
+            .sort({ rating: -1, helpful: -1, createdAt: -1 })
+            .limit(limit)
+            .lean()
 
-    return reviews
-  } catch (error) {
-    console.error('Get Featured Reviews Error:', error)
-    throw error
-  }
+        return reviews
+    } catch (error) {
+        console.error('Get Featured Reviews Error:', error)
+        throw error
+    }
 }
 
 

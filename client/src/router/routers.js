@@ -38,6 +38,8 @@ import AdminView from "../views/admin/AdminView.vue"
 import UserProfile from "../views/auth/UserProfile.vue"
 import SettingTab from "../components/profile/SettingTab.vue"
 import ShopProfile from "../components/profile/ShopProfile.vue"
+import NotificationsView from "../views/account/NotificationsView.vue"
+import NotificationPreferencesView from "../views/account/NotificationPreferencesView.vue"
 
 import Test from "../components/Test.vue"
 const routes = [
@@ -111,6 +113,26 @@ const routes = [
     ],
   },
 
+  // OAuth Success/Error Routes (outside /auth)
+  {
+    path: "/oauth-success",
+    name: "OAuthSuccess",
+    component: OAuthCallback,
+    meta: {
+      title: "OAuth Success - SHINY BEAUTY",
+      requiresAuth: false,
+    },
+  },
+  {
+    path: "/oauth-error",
+    name: "OAuthError",
+    component: OAuthCallback,
+    meta: {
+      title: "OAuth Error - SHINY BEAUTY",
+      requiresAuth: false,
+    },
+  },
+
   // ============ PRODUCT ROUTES ============
   {
     path: "/products",
@@ -162,6 +184,28 @@ const routes = [
           title: "Featured Products - SHINY BEAUTY",
           description: "Discover our featured beauty products",
           breadcrumb: "Featured",
+          requiresAuth: false,
+        },
+      },
+      {
+        path: "best-sellers",
+        name: "BestSellers",
+        component: () => import("../views/product-page/BestSellerView.vue"),
+        meta: {
+          title: "Best Sellers - SHINY BEAUTY",
+          description: "Shop our most popular beauty products and best sellers",
+          breadcrumb: "Best Sellers",
+          requiresAuth: false,
+        },
+      },
+      {
+        path: "new-arrivals",
+        name: "NewArrivals",
+        component: () => import("../views/product-page/NewArrivalView.vue"),
+        meta: {
+          title: "New Arrivals - SHINY BEAUTY",
+          description: "Discover the latest beauty products and new arrivals",
+          breadcrumb: "New Arrivals",
           requiresAuth: false,
         },
       },
@@ -360,6 +404,26 @@ const routes = [
           requiresAuth: true,
         },
       },
+      {
+        path: "notifications",
+        name: "Notifications",
+        component: NotificationsView,
+        meta: {
+          title: "Notifications - SHINY BEAUTY",
+          description: "View all your notifications",
+          requiresAuth: true,
+        },
+      },
+      {
+        path: "notifications/preferences",
+        name: "NotificationPreferences",
+        component: NotificationPreferencesView,
+        meta: {
+          title: "Notification Preferences - SHINY BEAUTY",
+          description: "Manage your notification settings",
+          requiresAuth: true,
+        },
+      },
     ],
   },
   {
@@ -388,6 +452,15 @@ const routes = [
           description: "Manage all products, stock, and pricing",
         },
       },
+      {
+        path: "bundle-products",
+        name: "AdminBundleProducts",
+        component: () => import("../views/admin/AdminBundleProductView.vue"),
+        meta: {
+          title: "Bundle Products Management - SHINY BEAUTY",
+          description: "Manage product bundles and package deals",
+        },
+      },
 
       {
         path: "orders",
@@ -401,10 +474,10 @@ const routes = [
       {
         path: "bundles",
         name: "AdminBundles",
-        component: () => import("../views/admin/AdminOrdersView.vue"),
+        component: () => import("../views/admin/AdminBundleProductView.vue"),
         meta: {
-          title: "Order Management - SHINY BEAUTY",
-          description: "Manage customer orders",
+          title: "Bundle Products - SHINY BEAUTY",
+          description: "Manage product bundles and deals",
         },
       },
       {

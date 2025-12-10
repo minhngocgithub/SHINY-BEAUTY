@@ -215,6 +215,7 @@ export const useUserStore = defineStore('user', () => {
             loading.value = true
             error.value = null
             const response = await getUserStats()
+            console.log('fetchStats response:', response?.data)
             if (response.data.success) {
                 stats.value = response.data.stats
                 return stats.value

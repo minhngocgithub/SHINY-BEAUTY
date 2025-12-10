@@ -49,8 +49,16 @@
       >
         <ValuesSet />
       </section>
+      <section
+        class="px-16"
+        data-aos="fade-up"
+        data-aos-duration="1000"
+        data-aos-delay="400"
+      >
+        <Reviews :limit="4"/>
+      </section>
     </section>
-
+    <Footer />
     <FloatingCart @toggle-cart="handleToggleCart" />
   </div>
 
@@ -67,6 +75,7 @@ import FloatingCart from "../components/FloatingCart.vue";
 import NewArrivals from "../components/NewArrival.vue";
 import QuickLink from "../components/QuickLink.vue";
 import ValuesSet from "../components/ValuesSet.vue";
+import Reviews from '../components/Reviews.vue'
 import Footer from "../components/Footer.vue";
 import { useAuthStore } from "../store/auth.store";
 import { refreshAOS } from "../../utils/aos";

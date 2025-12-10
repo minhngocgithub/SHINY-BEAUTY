@@ -139,6 +139,27 @@
             Payment Method
           </h2>
           <PaymentMethodSelector v-model="paymentMethod" />
+
+          <!-- MoMo Payment Form -->
+          <MoMoPaymentForm
+            v-if="paymentMethod === 'momo'"
+            @update:valid="momoFormValid = $event"
+            @update:data="momoFormData = $event"
+          />
+
+          <!-- PayPal Payment Form -->
+          <PayPalPaymentForm
+            v-if="paymentMethod === 'paypal'"
+            @update:valid="paypalFormValid = $event"
+            @update:data="paypalFormData = $event"
+          />
+
+          <!-- VNPay Payment Form -->
+          <VNPayPaymentForm
+            v-if="paymentMethod === 'vnpay'"
+            @update:valid="vnpayFormValid = $event"
+            @update:data="vnpayFormData = $event"
+          />
         </div>
 
         <!-- Step 3: Review -->
@@ -147,12 +168,12 @@
             Review Your Order
           </h2>
           <OrderReview
+            :shippingAddress="shippingAddress"
+            :paymentMethod="paymentMethod"
+            :cartItems="filteredCartItems"
+            :summary="filteredSummary"
+            :calculatedShipping="calculatedShipping"
             ref="orderReviewRef"
-            :shipping-address="shippingAddress"
-            :payment-method="paymentMethod"
-            :cart-items="cartItems"
-            :summary="cartSummary"
-            :calculated-shipping="calculatedShipping"
             @edit="handleEdit"
           />
         </div>
@@ -194,11 +215,21 @@
         <p class="text-sm text-red-700 dark:text-red-400">{{ error }}</p>
       </div>
     </div>
+
+    <!-- Fireworks Success Animation -->
+    <FireworksAnimation
+      :show="showFireworks"
+      message="Đơn hàng đã được tạo thành công!"
+      :orderNumber="createdOrderId"
+      @close="showFireworks = false"
+      @view-order="router.push(`/orders/${createdOrderId}`)"
+      @continue-shopping="router.push('/')"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { useCartStore } from "../../store/cart.store";
 import { useOrderStore } from "../../store/order.store";
@@ -207,6 +238,10 @@ import { storeToRefs } from "pinia";
 import ShippingForm from "../../components/checkout/ShippingForm.vue";
 import PaymentMethodSelector from "../../components/checkout/PaymentMethodSelector.vue";
 import OrderReview from "../../components/checkout/OrderReview.vue";
+import MoMoPaymentForm from "../../components/payment/MoMoPaymentForm.vue";
+import PayPalPaymentForm from "../../components/payment/PayPalPaymentForm.vue";
+import VNPayPaymentForm from "../../components/payment/VNPayPaymentForm.vue";
+import FireworksAnimation from "../../components/payment/FireworksAnimation.vue";
 import { calculateShippingFee } from "../../service/shipping.service";
 
 const router = useRouter();
@@ -214,6 +249,68 @@ const cartStore = useCartStore();
 const orderStore = useOrderStore();
 const userStore = useUserStore();
 const { cartItems, cartSummary, isEmpty } = storeToRefs(cartStore);
+const selectedCartItemIds = ref([]);
+
+try {
+  const saved = sessionStorage.getItem("selectedCartItems");
+  if (saved) {
+    selectedCartItemIds.value = JSON.parse(saved);
+  }
+} catch (error) {
+  console.warn("Failed to parse selectedCartItems:", error);
+}
+
+const filteredCartItems = computed(() => {
+  // If no selection saved, show all items (backward compatibility)
+  if (!selectedCartItemIds.value || selectedCartItemIds.value.length === 0) {
+    console.log(
+      "[CheckoutView] No selection, using all",
+      cartItems.value.length,
+      "items"
+    );
+    return cartItems.value;
+  }
+  // Filter to only selected items
+  const filtered = cartItems.value.filter((item) =>
+    selectedCartItemIds.value.includes(item._id)
+  );
+  console.log(
+    "[CheckoutView] Filtered:",
+    filtered.length,
+    "of",
+    cartItems.value.length,
+    "items"
+  );
+  return filtered;
+});
+
+// Persist the filtered checkout items so other checkout pages (eg. CheckoutPayment)
+// that read `sessionStorage.checkoutItems` receive the correct selection.
+watch(
+  filteredCartItems,
+  (newItems) => {
+    try {
+      const toSave = (newItems || []).map((it) => ({
+        _id: it._id,
+        quantity: it.quantity,
+        itemType: it.itemType,
+        product: it.product || null,
+        bundle: it.bundle || null,
+        finalPrice: it.finalPrice,
+        originalPrice: it.originalPrice,
+      }));
+      console.log(
+        "[CheckoutView] Saving to sessionStorage:",
+        toSave.length,
+        "items"
+      );
+      sessionStorage.setItem("checkoutItems", JSON.stringify(toSave));
+    } catch (err) {
+      console.warn("Failed to persist checkoutItems:", err);
+    }
+  },
+  { immediate: true, deep: true }
+);
 
 // Restore from sessionStorage or use defaults
 const savedCheckoutState = sessionStorage.getItem("checkoutState");
@@ -243,6 +340,18 @@ const calculatedShipping = ref(initialState?.calculatedShipping || null);
 const shippingFormRef = ref(null);
 const orderReviewRef = ref(null);
 
+// Payment form validation
+const momoFormValid = ref(false);
+const momoFormData = ref({});
+const paypalFormValid = ref(false);
+const paypalFormData = ref({});
+const vnpayFormValid = ref(false);
+const vnpayFormData = ref({});
+
+// Fireworks animation
+const showFireworks = ref(false);
+const createdOrderId = ref("");
+
 const steps = [
   { id: 1, label: "Shipping" },
   { id: 2, label: "Payment" },
@@ -251,7 +360,14 @@ const steps = [
 
 const canProceed = computed(() => {
   if (currentStep.value === 1) return shippingValid.value;
-  if (currentStep.value === 2) return !!paymentMethod.value;
+  if (currentStep.value === 2) {
+    if (!paymentMethod.value) return false;
+    // Validate payment form if MoMo, PayPal or VNPay is selected
+    if (paymentMethod.value === "momo") return momoFormValid.value;
+    if (paymentMethod.value === "paypal") return paypalFormValid.value;
+    if (paymentMethod.value === "vnpay") return vnpayFormValid.value;
+    return true; // COD doesn't need validation
+  }
   return false;
 });
 
@@ -259,7 +375,32 @@ const canPlaceOrder = computed(() => {
   return orderReviewRef.value?.termsAccepted;
 });
 
+// Provide a summary that matches the filtered items. If the user selected
+// all cart items we can use the backend `cartSummary`; otherwise pass an
+// empty object so `OrderReview` recalculates pricing from `cartItems`.
+const filteredSummary = computed(() => {
+  try {
+    if (!filteredCartItems.value || filteredCartItems.value.length === 0)
+      return {};
+    if (filteredCartItems.value.length === cartItems.value.length) {
+      return cartSummary.value || {};
+    }
+    return {};
+  } catch (err) {
+    console.warn("[CheckoutView] filteredSummary error", err);
+    return {};
+  }
+});
+
 // Save checkout state to sessionStorage whenever it changes
+// Debug payment method changes
+watch(paymentMethod, (newVal) => {
+  console.log("[CheckoutView] Payment method changed:", newVal);
+  console.log("[CheckoutView] Momo form should show:", newVal === "momo");
+  console.log("[CheckoutView] PayPal form should show:", newVal === "paypal");
+  console.log("[CheckoutView] VNPay form should show:", newVal === "vnpay");
+});
+
 watch(
   [
     currentStep,
@@ -343,37 +484,91 @@ const handleAddressSelect = () => {
     }
   }
 };
-
-watch(
-  () => shippingAddress.value.city,
-  async (newCity) => {
-    if (!newCity || newCity.trim() === "") {
-      calculatedShipping.value = null;
-      return;
-    }
-
-    try {
-      const hasFreeShipping =
-        cartSummary.value?.cartBenefits?.freeShipping === true;
-
-      const result = await calculateShippingFee(
-        newCity,
-        hasFreeShipping,
-        false
+const loadSelectionFromStorage = () => {
+  try {
+    const saved = sessionStorage.getItem("selectedCartItems");
+    if (saved) {
+      selectedCartItemIds.value = JSON.parse(saved);
+      console.log(
+        "[CheckoutView] Loaded selection:",
+        selectedCartItemIds.value.length
       );
+    } else {
+      console.warn("[CheckoutView] No selection in sessionStorage");
+      selectedCartItemIds.value = [];
+    }
+  } catch (error) {
+    console.warn("Failed to parse selectedCartItems:", error);
+    selectedCartItemIds.value = [];
+  }
+};
+watch(
+  filteredCartItems,
+  (newItems) => {
+    try {
+      const toSave = (newItems || [])
+        .map((it) => {
+          const qty = it.quantity || 1;
+          const isProduct = it.itemType === "product" || it.product;
+          const itemData = isProduct ? it.product : it.bundle;
 
-      calculatedShipping.value = {
-        fee: result.fee,
-        reason: result.isFree ? "FREE_SHIPPING_ZONE" : "DISTANCE_BASED",
-        zone: result.zone,
-        distance: result.distance,
-        deliveryEstimate: result.deliveryEstimate,
-      };
-    } catch (error) {
-      console.error("Failed to calculate shipping:", error);
+          if (!itemData) {
+            console.warn("[CheckoutView] Missing item data:", it);
+            return null;
+          }
+
+          // ✅ Convert line totals to unit prices
+          const unitFinalPrice = it.finalPrice
+            ? it.finalPrice / qty
+            : itemData.salePrice || itemData.bundlePrice || itemData.price || 0;
+
+          const unitOriginalPrice = it.originalPrice
+            ? it.originalPrice / qty
+            : itemData.price || itemData.originalPrice || unitFinalPrice;
+
+          return {
+            _id: it._id,
+            quantity: qty,
+            itemType: it.itemType,
+            product: it.product || null,
+            bundle: it.bundle || null,
+            finalPrice: unitFinalPrice,
+            originalPrice: unitOriginalPrice,
+            _meta: {
+              name: itemData.name,
+              itemType: it.itemType,
+            },
+          };
+        })
+        .filter((item) => item !== null);
+
+      console.log(
+        "[CheckoutView] Saving to sessionStorage:",
+        toSave.length,
+        "items"
+      );
+      sessionStorage.setItem("checkoutItems", JSON.stringify(toSave));
+    } catch (err) {
+      console.warn("Failed to persist checkoutItems:", err);
+    }
+  },
+  { immediate: true, deep: true }
+);
+
+const handleStorageChange = (event) => {
+  if (event.key === "selectedCartItems" && event.newValue) {
+    try {
+      const newSelection = JSON.parse(event.newValue);
+      console.log(
+        "[CheckoutView] Storage changed, updating selection:",
+        newSelection.length
+      );
+      selectedCartItemIds.value = newSelection;
+    } catch (err) {
+      console.warn("[CheckoutView] Failed to parse storage change:", err);
     }
   }
-);
+};
 
 const placeOrder = async () => {
   try {
@@ -385,7 +580,7 @@ const placeOrder = async () => {
       return;
     }
     const orderData = {
-      orderItems: cartItems.value.map((item) => {
+      orderItems: filteredCartItems.value.map((item) => {
         const isProduct = item.itemType === "product" || item.product;
         const itemData = isProduct ? item.product : item.bundle;
 
@@ -427,7 +622,7 @@ const placeOrder = async () => {
         country: shippingAddress.value.country || "VN",
         phone: shippingAddress.value.phone || "",
       },
-      paymentMethod: paymentMethod.value.toUpperCase(),
+      paymentMethod: paymentMethod.value.toUpperCase(), // Map to backend enum: COD, VNPAY, MOMO, PAYPAL
       appliedPrograms: cartSummary.value?.applicablePrograms || [],
       note: shippingAddress.value.note || "",
     };
@@ -439,9 +634,11 @@ const placeOrder = async () => {
 
     // Clear checkout state from sessionStorage
     sessionStorage.removeItem("checkoutState");
+    sessionStorage.removeItem("selectedCartItems");
 
-    // Redirect to order detail page
-    router.push(`/orders/${order._id}`);
+    // Show fireworks animation
+    createdOrderId.value = order._id;
+    showFireworks.value = true;
   } catch (err) {
     const errorMessage =
       err.response?.data?.message ||
@@ -459,6 +656,9 @@ const placeOrder = async () => {
 };
 
 onMounted(async () => {
+  // ✅ Load selection FIRST before fetching cart
+  loadSelectionFromStorage();
+
   await cartStore.fetchCart();
 
   if (isEmpty.value) {
@@ -476,5 +676,11 @@ onMounted(async () => {
   } catch (err) {
     console.error("Failed to load addresses:", err);
   }
+
+  // ✅ Listen for storage changes
+  window.addEventListener("storage", handleStorageChange);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("storage", handleStorageChange);
 });
 </script>

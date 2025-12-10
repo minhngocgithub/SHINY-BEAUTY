@@ -135,3 +135,28 @@ export const validateLoyaltyPoints = (pointsToUse, availablePoints, orderTotal) 
 
     return { valid: true }
 }
+
+export const getPendingRewards = async (lastLoginTime, previousTier) => {
+    try {
+        const response = await axiosApiInstance.get('/loyalty/pending-rewards', {
+            params: {
+                lastLoginTime: lastLoginTime ? new Date(lastLoginTime).toISOString() : null,
+                previousTier
+            }
+        })
+        return response
+    } catch (error) {
+        console.error('Get pending rewards error:', error)
+        throw error
+    }
+}
+
+export const syncLoyaltyData = async () => {
+    try {
+        const response = await axiosApiInstance.post('/users/loyalty/sync')
+        return response
+    } catch (error) {
+        console.error('Sync loyalty data error:', error)
+        throw error
+    }
+}

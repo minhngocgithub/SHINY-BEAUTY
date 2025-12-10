@@ -170,19 +170,27 @@
 import { computed, h } from "vue";
 
 const props = defineProps({
-  status: {
+  currentStatus: {
     type: String,
     required: true,
   },
-  createdAt: {
-    type: String,
-    required: true,
+  timeline: {
+    type: Array,
+    default: () => [],
   },
-  paidAt: {
+  estimatedDeliveryDate: {
     type: String,
     default: null,
   },
-  shippedAt: {
+  createdAt: {
+    type: String,
+    default: null,
+  },
+  isPaid: {
+    type: Boolean,
+    default: false,
+  },
+  paidAt: {
     type: String,
     default: null,
   },
@@ -191,6 +199,15 @@ const props = defineProps({
     default: null,
   },
   cancelledAt: {
+    type: String,
+    default: null,
+  },
+  // Legacy props support
+  status: {
+    type: String,
+    default: null,
+  },
+  shippedAt: {
     type: String,
     default: null,
   },
@@ -283,27 +300,44 @@ const XIcon = () =>
   );
 
 const timelineEvents = computed(() => {
+  // Priority 1: Use automation timeline if available
+  if (props.timeline && props.timeline.length > 0) {
+    return props.timeline.map((event) => ({
+      label: getStatusLabel(event.status),
+      description:
+        event.message || event.note || getStatusDescription(event.status),
+      icon: getStatusIcon(event.status),
+      date: event.timestamp,
+      // Format location - convert object to string if needed
+      location: formatLocation(event.location),
+      completed: true,
+      active: false,
+    }));
+  }
+
+  // Priority 2: Use legacy timelineEvents if provided
   if (props.timelineEvents && props.timelineEvents.length > 0) {
     return props.timelineEvents;
   }
 
-  // Default timeline based on status
+  // Priority 3: Build from current status
+  const currentStatus = props.currentStatus || props.status;
   const events = [];
 
-  // Order Placed
+  // Order Placed (always completed)
   events.push({
-    label: "Order Placed",
+    label: "⏳ Order Placed",
     description: "Your order has been received",
     icon: ClockIcon,
     date: props.createdAt,
     completed: true,
-    active: false,
+    active: currentStatus === "PENDING",
   });
 
   // Cancelled Path
-  if (props.status === "cancelled") {
+  if (currentStatus === "CANCELLED" || currentStatus === "cancelled") {
     events.push({
-      label: "Order Cancelled",
+      label: "❌ Order Cancelled",
       description: "This order has been cancelled",
       icon: XIcon,
       date: props.cancelledAt,
@@ -313,57 +347,141 @@ const timelineEvents = computed(() => {
     return events;
   }
 
-  // Payment Confirmed
+  // Confirmed
+  const confirmedStatuses = [
+    "CONFIRMED",
+    "PREPARING",
+    "IN_TRANSIT",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+  ];
   events.push({
-    label: "Payment Confirmed",
-    description: "Payment has been verified",
-    icon: CreditCardIcon,
-    date: props.paidAt,
-    completed: ["paid", "processing", "shipped", "delivered"].includes(
-      props.status
-    ),
-    active: props.status === "confirmed",
+    label: "✅ Order Confirmed",
+    description: "Admin has confirmed your order",
+    icon: CheckIcon,
+    date: confirmedStatuses.includes(currentStatus) ? props.createdAt : null,
+    completed: confirmedStatuses.includes(currentStatus),
+    active: currentStatus === "CONFIRMED",
   });
 
-  // Processing
+  // Payment (if paid)
+  if (props.isPaid) {
+    events.push({
+      label: "💳 Payment Confirmed",
+      description: "Payment has been received",
+      icon: CreditCardIcon,
+      date: props.paidAt,
+      completed: true,
+      active: false,
+    });
+  }
+
+  // Preparing
+  const preparingStatuses = [
+    "PREPARING",
+    "IN_TRANSIT",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+  ];
   events.push({
-    label: "Order Processing",
-    description: "Your order is being prepared",
+    label: "📦 Preparing Order",
+    description: "Your order is being prepared for shipping",
     icon: PackageIcon,
-    date: props.paidAt,
-    completed: ["processing", "shipped", "delivered"].includes(props.status),
-    active: props.status === "paid" || props.status === "processing",
+    date: preparingStatuses.includes(currentStatus) ? props.paidAt : null,
+    completed: preparingStatuses.includes(currentStatus),
+    active: currentStatus === "PREPARING",
   });
 
-  // Shipped
+  // In Transit
+  const transitStatuses = ["IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"];
   events.push({
-    label: "Out for Delivery",
+    label: "🚚 In Transit",
     description: "Your order is on the way",
     icon: TruckIcon,
-    date: props.shippedAt,
-    completed: ["delivered"].includes(props.status),
-    active: props.status === "shipped",
+    date: transitStatuses.includes(currentStatus) ? props.paidAt : null,
+    completed: transitStatuses.includes(currentStatus),
+    active: currentStatus === "IN_TRANSIT",
+  });
+
+  // Out for Delivery
+  const deliveryStatuses = ["OUT_FOR_DELIVERY", "DELIVERED"];
+  events.push({
+    label: "🚴 Out for Delivery",
+    description: "Driver is delivering your order",
+    icon: TruckIcon,
+    date: deliveryStatuses.includes(currentStatus) ? props.paidAt : null,
+    completed: deliveryStatuses.includes(currentStatus),
+    active: currentStatus === "OUT_FOR_DELIVERY",
   });
 
   // Delivered
   events.push({
-    label: "Delivered",
+    label: "✨ Delivered",
     description: "Order has been delivered successfully",
     icon: HomeIcon,
     date: props.deliveredAt,
-    completed: props.status === "delivered",
+    completed: currentStatus === "DELIVERED" || currentStatus === "delivered",
     active: false,
   });
 
   return events;
 });
 
+const getStatusLabel = (status) => {
+  const labels = {
+    PENDING: "⏳ Order Placed",
+    CONFIRMED: "✅ Order Confirmed",
+    PREPARING: "📦 Preparing Order",
+    IN_TRANSIT: "🚚 In Transit",
+    OUT_FOR_DELIVERY: "🚴 Out for Delivery",
+    DELIVERED: "✨ Delivered",
+    CANCELLED: "❌ Cancelled",
+  };
+  return labels[status] || status;
+};
+
+const getStatusDescription = (status) => {
+  const descriptions = {
+    PENDING: "Your order has been received",
+    CONFIRMED: "Admin has confirmed your order",
+    PREPARING: "Your order is being prepared for shipping",
+    IN_TRANSIT: "Your order is on the way to you",
+    OUT_FOR_DELIVERY: "Driver is delivering your order",
+    DELIVERED: "Order has been delivered successfully",
+    CANCELLED: "Your order has been cancelled",
+  };
+  return descriptions[status] || "";
+};
+
+const getStatusIcon = (status) => {
+  const icons = {
+    PENDING: ClockIcon,
+    CONFIRMED: CheckIcon,
+    PREPARING: PackageIcon,
+    IN_TRANSIT: TruckIcon,
+    OUT_FOR_DELIVERY: TruckIcon,
+    DELIVERED: HomeIcon,
+    CANCELLED: XIcon,
+  };
+  return icons[status] || ClockIcon;
+};
+
 const estimatedCompletion = computed(() => {
-  if (props.status === "delivered" && props.deliveredAt) {
+  const currentStatus = props.currentStatus || props.status;
+
+  // Use provided estimatedDeliveryDate if available
+  if (props.estimatedDeliveryDate) {
+    return props.estimatedDeliveryDate;
+  }
+
+  if (
+    (currentStatus === "DELIVERED" || currentStatus === "delivered") &&
+    props.deliveredAt
+  ) {
     return null;
   }
 
-  // Calculate estimated delivery (3 days from order)
+  // Calculate estimated delivery (3 days from order for legacy)
   if (props.createdAt) {
     const created = new Date(props.createdAt);
     const estimated = new Date(created.getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -388,5 +506,23 @@ const formatTime = (date) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+// Format location - convert object to string if needed
+const formatLocation = (location) => {
+  if (!location) return null;
+
+  // If it's already a string, return it
+  if (typeof location === "string") return location;
+
+  // If it's an object with address property
+  if (location.address) return location.address;
+
+  // If it's an object with lat/lng but no address
+  if (location.lat && location.lng) {
+    return `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+  }
+
+  return null;
 };
 </script>

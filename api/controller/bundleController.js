@@ -13,30 +13,38 @@ const createProductBundle = async (req, res) => {
             brand,
             featured,
             featuredType
-        } = req.body
-        const pricingValidation = await BundleUtils.validateBundlePricing(bundlePrice, items)
+        } = req.body;
+
+        const pricingValidation = await BundleUtils.validateBundlePricing(bundlePrice, items);
         const productIds = items.map(item => item.product);
-        const products = await Product.find({ _id: { $in: productIds } })
+        const products = await Product.find({ _id: { $in: productIds } });
 
         if (products.length !== productIds.length) {
-            return res.status(400).json({ success: false, message: 'One or more products do not exist' })
+            return res.status(400).json({ success: false, message: 'One or more products do not exist' });
         }
 
         for (const item of items) {
             const product = products.find(p => p._id.toString() === item.product.toString());
             if (product.countInstock < item.quantity) {
-                return res.status(400).json({ success: false, message: `Insufficient stock for product ${product.name}` })
+                return res.status(400).json({
+                    success: false,
+                    message: `Insufficient stock for product ${product.name}`
+                });
             }
         }
-        let imageData = null;
 
+        // ✅ FIXED: Handle image as array
+        let imageData = [];
         if (req.body.image) {
-            if (typeof req.body.image === 'object' && req.body.image.url && req.body.image.public_id) {
-                imageData = req.body.image;
+            if (Array.isArray(req.body.image)) {
+                imageData = req.body.image.filter(img => img.public_id && img.url);
+            } else if (typeof req.body.image === 'object' && req.body.image.url) {
+                imageData = [req.body.image];
             } else if (typeof req.body.image === 'string' && req.body.image.startsWith('http')) {
-                imageData = { url: req.body.image, public_id: null };
+                imageData = [{ url: req.body.image, public_id: `bundle_${Date.now()}` }];
             }
         }
+
         const bundle = await ProductBundle.create({
             name,
             description,
@@ -46,24 +54,29 @@ const createProductBundle = async (req, res) => {
             brand,
             featured,
             featuredType,
-            image: imageData,
+            image: imageData, // ✅ Now correctly an array
             user: req.user.id,
             originalPrice: pricingValidation.originalTotal,
             savings: pricingValidation.savings,
             discountPercentage: pricingValidation.discountPercentage
-        })
+        });
 
-        await bundle.populate('items.product', 'name price image images countInstock rating numReviews')
-        await bundle.populate('category', 'name')
+        await bundle.populate('items.product', 'name price image countInstock rating numReviews brand currentPrice isSaleActive');
+        await bundle.populate('category', 'name');
 
         res.status(201).json({
             success: true,
             bundle
-        })
+        });
     } catch (error) {
-        return res.status(500).json({ success: false, message: 'Server Error', error: error.message })
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
     }
-}
+};
+
 const getProductBundles = async (req, res) => {
     try {
         const {
@@ -111,7 +124,7 @@ const getProductBundles = async (req, res) => {
 
         const [bundles, total] = await Promise.all([
             ProductBundle.find(filter)
-                .populate('items.product', 'name price image images brand countInstock currentPrice isSaleActive rating numReviews')
+                .populate('items.product', 'name price image brand countInstock currentPrice isSaleActive rating numReviews')
                 .populate('category', 'name')
                 .sort(sort)
                 .skip(skip)
@@ -166,15 +179,14 @@ const getFeaturedBundles = async (req, res) => {
 }
 const getSingleBundle = async (req, res) => {
     try {
-        const bundle = await ProductBundle.findById(req.params.id)
-            .populate('items.product', 'name price image images brand countInstock currentPrice isSaleActive description reviews rating numReviews')
+        const bundleId = req.params.bundleId || req.params.id;
+        const bundle = await ProductBundle.findById(bundleId)
+            .populate('items.product', 'name price image brand countInstock currentPrice isSaleActive description reviews rating numReviews')
             .populate('category', 'name');
 
         if (!bundle || !bundle.isActive) {
-            return res.status(404).json({ success: false, message: 'Bundle not found' })
+            return res.status(404).json({ success: false, message: 'Bundle not found' });
         }
-        bundle.views += 1;
-        await bundle.save({ validateBeforeSave: false });
 
         const stockCheck = await bundle.checkStock();
         const availableQuantity = await bundle.getAvailableQuantity();
@@ -188,189 +200,211 @@ const getSingleBundle = async (req, res) => {
             }
         });
     } catch (error) {
-        return res.status(404).json({ success: false, message: 'Bundle not found' })
+        return res.status(404).json({ success: false, message: 'Bundle not found' });
     }
-}
+};
 const updateProductBundle = async (req, res) => {
-    let bundle = await ProductBundle.findById(req.params.id);
+    try {
+        const bundleId = req.params.bundleId || req.params.id;
+        let bundle = await ProductBundle.findById(bundleId);
 
-    if (!bundle) {
-        return next(new ErrorHandler('Bundle not found', 404));
-    }
-
-    const {
-        name,
-        description,
-        image,
-        items,
-        bundlePrice,
-        category,
-        brand,
-        featured,
-        featuredType,
-        isActive
-    } = req.body;
-
-    const updateData = {};
-
-    // Update basic fields
-    if (name !== undefined) updateData.name = name.trim();
-    if (description !== undefined) updateData.description = description.trim();
-    if (brand !== undefined) updateData.brand = brand?.trim();
-    if (isActive !== undefined) updateData.isActive = Boolean(isActive);
-
-    // Handle image updates
-    if (image && Array.isArray(image)) {
-        const validImages = image.filter(img =>
-            img.public_id && img.url &&
-            typeof img.public_id === 'string' &&
-            typeof img.url === 'string'
-        );
-        updateData.image = validImages.slice(0, 5);
-    }
-
-    // Handle category updates
-    if (category !== undefined) {
-        if (Array.isArray(category) && category.length > 0) {
-            // Validate categories exist
-            const validCategories = await mongoose.model('Category').find({
-                _id: { $in: category }
-            });
-
-            if (validCategories.length !== category.length) {
-                return next(new ErrorHandler('One or more categories not found', 404));
-            }
-            updateData.category = category;
-        } else {
-            updateData.category = [];
-        }
-    }
-
-    // Handle items update (most complex part)
-    if (items && Array.isArray(items)) {
-        if (items.length === 0) {
-            return res.status(400).json({ success: false, message: 'Bundle must contain at least one item' });
+        if (!bundle) {
+            return res.status(404).json({ success: false, message: 'Bundle not found' });
         }
 
-        if (items.length > 10) {
-            return res.status(400).json({ success: false, message: 'Bundle cannot contain more than 10 items' });
+        const {
+            name, description, image, items, bundlePrice,
+            category, brand, featured, featuredType, isActive
+        } = req.body;
+
+        const updateData = {};
+
+        if (name !== undefined) updateData.name = name.trim();
+        if (description !== undefined) updateData.description = description.trim();
+        if (brand !== undefined) updateData.brand = brand?.trim();
+        if (isActive !== undefined) updateData.isActive = Boolean(isActive);
+
+        if (image && Array.isArray(image)) {
+            const validImages = image.filter(img =>
+                img.public_id && img.url &&
+                typeof img.public_id === 'string' &&
+                typeof img.url === 'string'
+            );
+            updateData.image = validImages.slice(0, 5);
         }
 
-        // Validate items exist and have stock
-        const productIds = items.map(item => item.product);
-        const products = await Product.find({
-            _id: { $in: productIds },
-            isActive: true
-        });
+        if (category !== undefined) {
+            if (Array.isArray(category) && category.length > 0) {
+                const Category = mongoose.model('Category');
+                const validCategories = await Category.find({
+                    _id: { $in: category }
+                });
 
-        if (products.length !== productIds.length) {
-            return res.status(400).json({ success: false, message: 'One or more products do not exist or are inactive' });
-        }
-
-        // Check stock for each item
-        for (const item of items) {
-            const product = products.find(p => p._id.toString() === item.product.toString());
-
-            if (product.countInstock < item.quantity) {
-                return next(new ErrorHandler(
-                    `Insufficient stock for ${product.name}. Available: ${product.countInstock}, Required: ${item.quantity}`,
-                    400
-                ));
-            }
-
-            if (item.quantity > 5) {
-                return next(new ErrorHandler(
-                    `Maximum 5 quantity allowed per product. ${product.name} has ${item.quantity}`,
-                    400
-                ));
+                if (validCategories.length !== category.length) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'One or more categories not found'
+                    });
+                }
+                updateData.category = category;
+            } else {
+                updateData.category = [];
             }
         }
 
-        updateData.items = items;
-    }
-
-    // Handle bundle price update
-    if (bundlePrice !== undefined) {
-        const currentItems = items || bundle.items;
-
-        try {
-            await BundleUtils.validateBundlePricing(bundlePrice, currentItems);
-            updateData.bundlePrice = Number(bundlePrice);
-        } catch (error) {
-            return res.status(400).json({ success: false, message: error.message });
-        }
-    }
-
-    // Handle featured status update
-    if (featured !== undefined) {
-        if (featured && featuredType) {
-            const validFeaturedTypes = ['homepage', 'category', 'deal']
-            if (!validFeaturedTypes.includes(featuredType)) {
-                return next(new ErrorHandler('Invalid featured type', 400))
-            }
-
-            // Check featured limits (exclude current bundle from count)
-            const featuredCount = await ProductBundle.countDocuments({
-                _id: { $ne: req.params.id },
-                featured: true,
-                featuredType,
-                isActive: true
-            });
-
-            const maxFeatured = { homepage: 8, category: 12, deal: 6 }
-            if (featuredCount >= maxFeatured[featuredType]) {
+        if (items && Array.isArray(items)) {
+            if (items.length === 0) {
                 return res.status(400).json({
                     success: false,
-                    message: `Cannot feature more than ${maxFeatured[featuredType]} bundles on ${featuredType}`
-                })
+                    message: 'Bundle must contain at least one item'
+                });
             }
 
-            updateData.featured = true;
-            updateData.featuredType = featuredType;
-        } else {
-            updateData.featured = false
+            if (items.length > 10) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Bundle cannot contain more than 10 items'
+                });
+            }
+
+            const productIds = items.map(item => item.product);
+            const products = await Product.find({
+                _id: { $in: productIds },
+                isAvailable: { $ne: false }
+            });
+
+            if (products.length !== productIds.length) {
+                const allProducts = await Product.find({ _id: { $in: productIds } });
+                const unavailableProducts = allProducts.filter(p => p.isAvailable === false);
+
+                if (unavailableProducts.length > 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Some products are unavailable and need to be activated first`,
+                        inactiveProducts: unavailableProducts.map(p => ({
+                            id: p._id,
+                            name: p.name
+                        }))
+                    });
+                }
+
+                return res.status(400).json({
+                    success: false,
+                    message: 'One or more products do not exist'
+                });
+            }
+
+            for (const item of items) {
+                const product = products.find(p => p._id.toString() === item.product.toString());
+
+                if (product.countInstock < item.quantity) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Insufficient stock for ${product.name}. Available: ${product.countInstock}, Required: ${item.quantity}`
+                    });
+                }
+
+                if (item.quantity > 5) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Maximum 5 quantity allowed per product. ${product.name} has ${item.quantity}`
+                    });
+                }
+            }
+
+            updateData.items = items;
         }
+
+        if (bundlePrice !== undefined) {
+            const currentItems = items || bundle.items;
+
+            try {
+                await BundleUtils.validateBundlePricing(bundlePrice, currentItems);
+                updateData.bundlePrice = Number(bundlePrice);
+            } catch (error) {
+                return res.status(400).json({ success: false, message: error.message });
+            }
+        }
+
+        if (featured !== undefined) {
+            if (featured && featuredType) {
+                const validFeaturedTypes = ['homepage', 'category', 'deal'];
+                if (!validFeaturedTypes.includes(featuredType)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Invalid featured type'
+                    });
+                }
+
+                const featuredCount = await ProductBundle.countDocuments({
+                    _id: { $ne: bundleId },
+                    featured: true,
+                    featuredType,
+                    isActive: true
+                });
+
+                const maxFeatured = { homepage: 8, category: 12, deal: 6 };
+                if (featuredCount >= maxFeatured[featuredType]) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Cannot feature more than ${maxFeatured[featuredType]} bundles on ${featuredType}`
+                    });
+                }
+
+                updateData.featured = true;
+                updateData.featuredType = featuredType;
+            } else {
+                updateData.featured = false;
+            }
+        }
+
+        bundle = await ProductBundle.findByIdAndUpdate(
+            bundleId,
+            updateData,
+            {
+                new: true,
+                runValidators: true
+            }
+        ).populate([
+            {
+                path: 'items.product',
+                select: 'name price images countInstock currentPrice isSaleActive brand'
+            },
+            {
+                path: 'category',
+                select: 'name'
+            }
+        ]);
+
+        const bundleResponse = {
+            ...bundle.toObject(),
+            savings: bundle.savings,
+            actualDiscountPercentage: bundle.actualDiscountPercentage,
+            totalItems: bundle.items.length,
+            lastUpdated: bundle.updatedAt
+        };
+
+        res.status(200).json({
+            success: true,
+            message: 'Bundle updated successfully',
+            data: {
+                bundle: bundleResponse
+            }
+        });
+    } catch (error) {
+        console.error('[updateProductBundle] Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
     }
-
-    // Update the bundle
-    bundle = await ProductBundle.findByIdAndUpdate(
-        req.params.id,
-        updateData,
-        {
-            new: true,
-            runValidators: true
-        }
-    ).populate([
-        {
-            path: 'items.product',
-            select: 'name price images countInstock currentPrice isSaleActive brand'
-        },
-        {
-            path: 'category',
-            select: 'name'
-        }
-    ]);
-
-    const bundleResponse = {
-        ...bundle.toObject(),
-        savings: bundle.savings,
-        actualDiscountPercentage: bundle.actualDiscountPercentage,
-        totalItems: bundle.items.length,
-        lastUpdated: bundle.updatedAt
-    };
-
-    res.status(200).json({
-        success: true,
-        message: 'Bundle updated successfully',
-        data: {
-            bundle: bundleResponse
-        }
-    });
-}
+};
 
 // Delete product bundle - Admin only
 const deleteProductBundle = async (req, res) => {
-    const bundle = await ProductBundle.findById(req.params.id);
+    const bundleId = req.params.bundleId || req.params.id;
+    const bundle = await ProductBundle.findById(bundleId);
 
     if (!bundle) {
         return res.status(404).json({ success: false, message: 'Bundle not found' });
@@ -387,7 +421,8 @@ const deleteProductBundle = async (req, res) => {
 
 // Check bundle stock availability
 const checkBundleStock = async (req, res) => {
-    const bundle = await ProductBundle.findById(req.params.id);
+    const bundleId = req.params.bundleId || req.params.id;
+    const bundle = await ProductBundle.findById(bundleId);
 
     if (!bundle || !bundle.isActive) {
         return res.status(404).json({ success: false, message: 'Bundle not found' });
@@ -413,7 +448,7 @@ const getBundlesByCategory = async (req, res) => {
         category: categoryId,
         isActive: true
     })
-        .populate('items.product', 'name price images brand countInstock currentPrice isSaleActive')
+        .populate('items.product', 'name price image brand countInstock currentPrice isSaleActive rating numReviews')
         .populate('category', 'name')
         .limit(limit * 1)
         .skip((page - 1) * limit)
@@ -476,7 +511,7 @@ const getAdminBundles = async (req, res) => {
     sortObj[sortField] = order === 'asc' ? 1 : -1;
 
     const bundles = await ProductBundle.find(filter)
-        .populate('items.product', 'name price images countInstock currentPrice isSaleActive')
+        .populate('items.product', 'name price image countInstock currentPrice isSaleActive brand rating numReviews')
         .populate('category', 'name')
         .sort(sortObj)
         .skip(skip)
@@ -592,7 +627,7 @@ const searchBundles = async (req, res) => {
         // Execute query
         const [bundles, totalCount] = await Promise.all([
             ProductBundle.find(query)
-                .populate('items.product', 'name price images brand countInstock currentPrice isSaleActive')
+                .populate('items.product', 'name price image brand countInstock currentPrice isSaleActive rating numReviews')
                 .populate('category', 'name')
                 .sort(sortObj)
                 .skip(skip)
@@ -680,7 +715,7 @@ const getBundlesByProduct = async (req, res) => {
             'items.product': productId,
             isActive: true
         })
-            .populate('items.product', 'name price images brand countInstock currentPrice isSaleActive')
+            .populate('items.product', 'name price image brand countInstock currentPrice isSaleActive rating numReviews')
             .populate('category', 'name')
             .sort({ createdAt: -1 });
 

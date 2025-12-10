@@ -21,7 +21,8 @@ class ProductSearchService {
             maxPrice = null,
             minRating = null,
             inStock = null,
-            sortBy = 'relevance', // relevance, price-asc, price-desc, newest, popular, rating
+            isBestSeller = null,
+            sortBy = 'relevance', // relevance, price-asc, price-desc, newest, popular, rating, sold-desc
             page = 1,
             limit = 24
         } = params;
@@ -34,7 +35,8 @@ class ProductSearchService {
             minPrice,
             maxPrice,
             minRating,
-            inStock
+            inStock,
+            isBestSeller
         });
 
         // Calculate pagination
@@ -93,7 +95,7 @@ class ProductSearchService {
      * Build MongoDB query from search parameters
      */
     buildSearchQuery(params) {
-        const { keyword, category, brand, minPrice, maxPrice, minRating, inStock } = params;
+        const { keyword, category, brand, minPrice, maxPrice, minRating, inStock, isBestSeller } = params;
         const query = {};
 
         // Text search across multiple fields
@@ -134,6 +136,11 @@ class ProductSearchService {
             query.countInstock = { $gt: 0 };
         }
 
+        // Best Seller filter
+        if (isBestSeller === 'true' || isBestSeller === true) {
+            query.isBestSeller = true;
+        }
+
         return query;
     }
 
@@ -148,6 +155,7 @@ class ProductSearchService {
             'newest': { createdAt: -1 },
             'popular': { sold: -1, 'ratings.count': -1 },
             'rating': { 'ratings.average': -1, 'ratings.count': -1 },
+            'sold-desc': { sold: -1 },
             'name-asc': { name: 1 },
             'name-desc': { name: -1 }
         };
@@ -245,7 +253,7 @@ class ProductSearchService {
                     $bucket: {
                         groupBy: '$ratings.average',
                         boundaries: [0, 1, 2, 3, 4, 5],
-                        default: 0,
+                        default: 'other', // Values >= 5 or null/undefined
                         output: {
                             count: { $sum: 1 }
                         }
@@ -272,9 +280,9 @@ class ProductSearchService {
         }
     }
 
-    /**
-     * Get autocomplete suggestions for search
-     */
+
+
+
     async getSearchSuggestions(keyword, limit = 10) {
         if (!keyword || keyword.trim().length < 2) return [];
 

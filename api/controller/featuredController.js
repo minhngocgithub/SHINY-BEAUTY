@@ -59,13 +59,34 @@ const getFeaturedProducts = async (req, res) => {
             Product.countDocuments(query)
         ]);
 
+        // Ensure all products have featuredMetrics initialized
+        const productsWithMetrics = products.map(product => {
+            const productObj = product.toObject();
+            if (!productObj.featuredMetrics) {
+                productObj.featuredMetrics = {
+                    views: productObj.featuredViews || 0,
+                    clicks: productObj.featuredClicks || 0,
+                    conversions: 0,
+                    ctr: 0,
+                    conversionRate: 0
+                };
+                // Calculate CTR if there are views
+                if (productObj.featuredMetrics.views > 0) {
+                    productObj.featuredMetrics.ctr = parseFloat(
+                        ((productObj.featuredMetrics.clicks / productObj.featuredMetrics.views) * 100).toFixed(2)
+                    );
+                }
+            }
+            return productObj;
+        });
+
         res.status(200).json({
             status: "success",
-            results: products.length,
+            results: productsWithMetrics.length,
             total,
             page: parseInt(page),
             totalPages: Math.ceil(total / parseInt(limit)),
-            data: { products }
+            data: { products: productsWithMetrics }
         });
 
     } catch (error) {
@@ -262,12 +283,32 @@ const getFeaturedByType = async (req, res) => {
             .select('-featuredHistory -__v')
             .lean();
 
+        // Ensure all products have featuredMetrics initialized
+        const productsWithMetrics = products.map(product => {
+            if (!product.featuredMetrics) {
+                product.featuredMetrics = {
+                    views: product.featuredViews || 0,
+                    clicks: product.featuredClicks || 0,
+                    conversions: 0,
+                    ctr: 0,
+                    conversionRate: 0
+                };
+                // Calculate CTR if there are views
+                if (product.featuredMetrics.views > 0) {
+                    product.featuredMetrics.ctr = parseFloat(
+                        ((product.featuredMetrics.clicks / product.featuredMetrics.views) * 100).toFixed(2)
+                    );
+                }
+            }
+            return product;
+        });
+
         res.status(200).json({
             success: true,
             data: {
                 type,
-                products,
-                count: products.length
+                products: productsWithMetrics,
+                count: productsWithMetrics.length
             }
         });
 

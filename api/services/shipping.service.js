@@ -5,12 +5,13 @@ const logger = require("../config/logger")
  * Based on distance from Thuong Tin, Ha Noi warehouse
  */
 class ShippingService {
-    // Warehouse location
+    // Warehouse location (Ga Thường Tín, Hà Nội)
+    // Correct coordinates: 20.9954°N, 105.9033°E
     static WAREHOUSE = {
         name: "Ga Thường Tín",
         city: "Hà Nội",
-        lat: 20.5873,
-        lng: 105.8589
+        lat: 20.9954,
+        lng: 105.9033
     }
 
     // Shipping rate tiers based on distance (km) - IN USD
@@ -108,9 +109,10 @@ class ShippingService {
             const provinceData = this.PROVINCES[city]
             if (!provinceData) {
                 logger.warn(`Province not found: ${city}, using default rate`)
+                // Fallback to a valid zone value to avoid enum validation issues in Order model
                 return {
                     fee: 4.0,
-                    zone: "unknown",
+                    zone: "local",
                     distance: 0,
                     isFree: false,
                     currency: "USD",
@@ -141,9 +143,10 @@ class ShippingService {
 
         } catch (error) {
             logger.error("Error calculating shipping fee:", error)
+            // On error, return a safe default with a valid zone
             return {
                 fee: 2.0,
-                zone: "error",
+                zone: "local",
                 distance: 0,
                 isFree: false,
                 currency: "USD",
@@ -211,10 +214,11 @@ class ShippingService {
     static getShippingZone(city) {
         const provinceData = this.PROVINCES[city]
         if (!provinceData) {
+            // Return a valid zone fallback to avoid storing 'unknown' in orders
             return {
-                zone: "unknown",
+                zone: "local",
                 distance: 0,
-                description: "Unknown location"
+                description: "Unknown location (defaulted to local)"
             }
         }
 

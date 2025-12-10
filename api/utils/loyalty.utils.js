@@ -1,5 +1,5 @@
 const User = require('../models/user.models');
-const Order = require('../models/order.models');
+const mongoose = require('mongoose');
 
 class LoyaltyService {
     static getTierBenefits(tier) {
@@ -184,6 +184,120 @@ class LoyaltyService {
             progressSpending: requiredSpending === 0 ? 100 : ((totalSpent / (totalSpent + requiredSpending)) * 100),
             progressOrders: requiredOrders === 0 ? 100 : ((totalOrders / (totalOrders + requiredOrders)) * 100)
         };
+    }
+
+    static async updateUserTier(userId) {
+        try {
+            const user = await User.findById(userId);
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            const totalSpent = user.loyaltyProfile.totalSpent;
+            const totalOrders = user.loyaltyProfile.totalOrders;
+            let newTier = 'NEW_CUSTOMER';
+
+            // Determine tier based on spending and orders
+            if (totalSpent >= 2000 && totalOrders >= 50) {
+                newTier = 'PLATINUM';
+            } else if (totalSpent >= 1000 && totalOrders >= 20) {
+                newTier = 'VIP';
+            } else if (totalOrders >= 3) {
+                newTier = 'REGULAR';
+            }
+
+            // Update tier if changed
+            if (user.loyaltyProfile.tier !== newTier) {
+                const oldTier = user.loyaltyProfile.tier;
+                user.loyaltyProfile.tier = newTier;
+                await user.save();
+
+                console.log(`User ${userId} tier upgraded from ${oldTier} to ${newTier}`);
+            }
+
+            return user;
+        } catch (error) {
+            console.error('Error updating user tier:', error);
+            throw error;
+        }
+    }
+
+    static async syncUserLoyaltyData(userId) {
+        try {
+            const user = await User.findById(userId);
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            // Convert userId to ObjectId for aggregation
+            const userObjectId = new mongoose.Types.ObjectId(userId);
+
+            const Order = mongoose.model('Order')
+
+            // Get order statistics (exclude CANCELLED orders)
+            const orderStats = await Order.aggregate([
+                {
+                    $match: {
+                        user: userObjectId,
+                        status: { $ne: 'CANCELLED' }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalOrders: { $sum: 1 },
+                        totalSpent: { $sum: '$totalPrice' },
+                        averageOrderValue: { $avg: '$totalPrice' },
+                        lastPurchaseDate: { $max: '$createdAt' }
+                    }
+                }
+            ]);
+
+            // Get total loyalty points from DELIVERED orders only
+            const pointsStats = await Order.aggregate([
+                {
+                    $match: {
+                        user: userObjectId,
+                        status: 'DELIVERED',
+                        loyaltyPointsEarned: { $gt: 0 }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalPoints: { $sum: '$loyaltyPointsEarned' }
+                    }
+                }
+            ]);
+
+            const stats = orderStats[0] || {
+                totalOrders: 0,
+                totalSpent: 0,
+                averageOrderValue: 0,
+                lastPurchaseDate: null
+            };
+
+            const totalPoints = pointsStats[0]?.totalPoints || 0;
+
+            console.log(`Syncing loyalty data for user ${userId}:`, stats, `Total points: ${totalPoints}`);
+
+            // Update loyalty profile
+            user.loyaltyProfile.totalOrders = stats.totalOrders;
+            user.loyaltyProfile.totalSpent = stats.totalSpent;
+            user.loyaltyProfile.averageOrderValue = stats.averageOrderValue || 0;
+            user.loyaltyProfile.points = totalPoints; // Update total points from DELIVERED orders
+            if (stats.lastPurchaseDate) {
+                user.loyaltyProfile.lastPurchaseDate = stats.lastPurchaseDate;
+            }
+
+            await user.save();
+
+            // Update tier based on new stats
+            return await this.updateUserTier(userId);
+        } catch (error) {
+            console.error('Error syncing user loyalty data:', error);
+            throw error;
+        }
     }
 }
 

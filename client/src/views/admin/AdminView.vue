@@ -58,7 +58,7 @@ import KPISection from "../../components/admin/dashboard/KPISection.vue";
 import ChartsSection from "../../components/admin/dashboard/ChartsSection.vue";
 import OrdersSection from "../../components/admin/dashboard/OrdersSection.vue";
 import ActionsSection from "../../components/admin/dashboard/ActionSection.vue";
-import Loading from '../../components/Loading.vue'
+import Loading from "../../components/Loading.vue";
 // State
 const isDarkMode = ref(false);
 const userName = ref("Admin");
@@ -130,7 +130,7 @@ const formatStatus = (status) => {
   return statusMap[status] || status;
 };
 
-const fetchData = async (silent = false) => {
+const fetchData = async (silent = false, useCache = true) => {
   try {
     if (!silent) loading.value = true;
     error.value = null;
@@ -145,7 +145,7 @@ const fetchData = async (silent = false) => {
       userResponse,
       inventoryResponse,
     ] = await Promise.all([
-      getDashboardAnalyticsApi({ useCache: true }),
+      getDashboardAnalyticsApi({ useCache }),
       getPendingOrdersApi({ limit: 6, page: 1 }),
       getRevenueAnalyticsApi({ days: 30 }).catch(() => null),
       getSalesAnalyticsApi({ days: 30 }).catch(() => null),

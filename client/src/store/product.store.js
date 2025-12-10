@@ -177,16 +177,40 @@ export const useProductStore = defineStore('product', () => {
 
       if (response.data.success) {
         products.value = response.data.products || []
-        pagination.value = {
-          page: response.data.page || 1,
-          limit: response.data.limit || 12,
-          total: response.data.total || 0,
-          totalPages: response.data.totalPages || 0
+        
+        // ✅ FIX: Hỗ trợ cả 2 format API response
+        // Format 1: pagination nằm trong object riêng
+        // Format 2: pagination fields nằm flat trong response.data
+        if (response.data.pagination) {
+          // Format 1: { success, products, pagination: { page, limit, total, totalPages } }
+          pagination.value = {
+            page: response.data.pagination.page || 1,
+            limit: response.data.pagination.limit || 20,
+            total: response.data.pagination.total || 0,
+            totalPages: response.data.pagination.totalPages || 0
+          }
+        } else {
+          // Format 2: { success, products, page, limit, total, totalPages }
+          pagination.value = {
+            page: response.data.page || 1,
+            limit: response.data.limit || 20,
+            total: response.data.total || 0,
+            totalPages: response.data.totalPages || 0
+          }
         }
+
+        // 🔍 Debug log - XÓA SAU KHI FIX XONG
+        console.log('📊 Pagination Data:', {
+          page: pagination.value.page,
+          limit: pagination.value.limit,
+          total: pagination.value.total,
+          totalPages: pagination.value.totalPages,
+          productsCount: products.value.length
+        })
       }
     } catch (err) {
       error.value = err.response?.data?.message || 'Failed to fetch products'
-      console.error('Fetch products error:', err)
+      console.error('❌ Fetch products error:', err)
     } finally {
       loading.value = false
     }
@@ -418,4 +442,3 @@ export const useProductStore = defineStore('product', () => {
     clearError
   }
 })
-

@@ -344,13 +344,6 @@ async function fetchProductData() {
     const productRes = await getProductApi(productId);
     product.value = productRes.data.productData;
 
-    console.log("🔍 Product Data Loaded:", {
-      name: product.value.name,
-      countInstock: product.value.countInstock,
-      inStock: product.value.inStock,
-      allFields: Object.keys(product.value),
-    });
-
     const saleProgramParams = {
       productId: productId,
     };

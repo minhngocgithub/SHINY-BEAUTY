@@ -12,13 +12,16 @@ class BundleUtils {
             const price = product.isSaleActive ? product.currentPrice : product.price
             originalPrice += price * item.quantity
         }
-        if (bundlePrice >= originalPrice) {
-            throw new Error('Bundle price must be less than the total original price of included products')
+
+        // Allow bundlePrice to be equal to originalPrice (0% discount)
+        if (bundlePrice > originalPrice) {
+            throw new Error('Bundle price cannot be greater than the total original price of included products')
         }
+
         return {
             originalPrice,
             savings: originalPrice - bundlePrice,
-            discountPercentage: Math.round(((originalPrice - bundlePrice) / originalPrice) * 100)
+            discountPercentage: originalPrice > 0 ? Math.round(((originalPrice - bundlePrice) / originalPrice) * 100) : 0
         }
 
     }

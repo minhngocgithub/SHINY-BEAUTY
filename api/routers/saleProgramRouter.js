@@ -21,5 +21,8 @@ router.post('/admin/:id/sync-bundles', authenticate, authorizeAdmin, validateObj
 router.get('/admin/:id/analytics', authenticate, authorizeAdmin, validateObject(), saleProgramController.getSaleProgramAnalytics);
 router.patch('/admin/:id/toggle-status', authenticate, authorizeAdmin, validateObject(), saleProgramController.toggleSaleProgramStatus);
 router.post('/admin/upload-banner', authenticate, authorizeAdmin, upload.single('bannerImage'), saleProgramController.uploadSaleProgramBanner);
+router.post('/admin/:id/recalculate-stats', authenticate, authorizeAdmin, validateObject(), saleProgramController.recalculateProgramStats);
+router.post('/admin/recalculate-all-stats', authenticate, authorizeAdmin, saleProgramController.recalculateAllProgramStats);
+router.post('/admin/fix-legacy-data', authenticate, authorizeAdmin, saleProgramController.fixLegacyDataFields);
 
 module.exports = router;

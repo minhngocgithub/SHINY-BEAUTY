@@ -7,15 +7,15 @@ const { generateAccessToken, generateRefreshToken } = require('../utils/createTo
 
 // Google OAuth Strategy
 passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientID: process.env.GOOGLE_OAUTH_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/api/v1/auth/oauth/google/callback",
+    callbackURL: `${process.env.URL_SERVER}/api/v1/auth/oauth/google/callback`,
     scope: ['profile', 'email']
 }, async (accessToken, refreshToken, profile, done) => {
     try {
         // Kiểm tra user đã tồn tại chưa
         let user = await User.findOne({ email: profile.emails[0].value });
-        
+
         if (user) {
             // User đã tồn tại, cập nhật thông tin OAuth
             user.googleId = profile.id;
@@ -26,7 +26,7 @@ passport.use(new GoogleStrategy({
             await user.save();
             return done(null, user);
         }
-        
+
         // Tạo user mới
         user = await User.create({
             name: profile.displayName,
@@ -39,7 +39,7 @@ passport.use(new GoogleStrategy({
             password: 'oauth_user_' + Math.random().toString(36).substr(2, 9), // Random password cho OAuth user
             isOAuthUser: true
         });
-        
+
         return done(null, user);
     } catch (error) {
         return done(error, null);
@@ -55,7 +55,7 @@ passport.use(new GoogleStrategy({
 // }, async (accessToken, refreshToken, profile, done) => {
 //     try {
 //         let user = await User.findOne({ email: profile.emails[0].value });
-        
+
 //         if (user) {
 //             user.facebookId = profile.id;
 //             user.avatar = {
@@ -65,7 +65,7 @@ passport.use(new GoogleStrategy({
 //             await user.save();
 //             return done(null, user);
 //         }
-        
+
 //         user = await User.create({
 //             name: profile.displayName,
 //             email: profile.emails[0].value,
@@ -77,7 +77,7 @@ passport.use(new GoogleStrategy({
 //             password: 'oauth_user_' + Math.random().toString(36).substr(2, 9),
 //             isOAuthUser: true
 //         });
-        
+
 //         return done(null, user);
 //     } catch (error) {
 //         return done(error, null);
@@ -94,9 +94,9 @@ passport.use(new GoogleStrategy({
 //     try {
 //         // Twitter có thể không cung cấp email, sử dụng username
 //         const email = profile.emails ? profile.emails[0].value : `${profile.username}@twitter.com`;
-        
+
 //         let user = await User.findOne({ email: email });
-        
+
 //         if (user) {
 //             user.twitterId = profile.id;
 //             user.avatar = {
@@ -106,7 +106,7 @@ passport.use(new GoogleStrategy({
 //             await user.save();
 //             return done(null, user);
 //         }
-        
+
 //         user = await User.create({
 //             name: profile.displayName || profile.username,
 //             email: email,
@@ -118,7 +118,7 @@ passport.use(new GoogleStrategy({
 //             password: 'oauth_user_' + Math.random().toString(36).substr(2, 9),
 //             isOAuthUser: true
 //         });
-        
+
 //         return done(null, user);
 //     } catch (error) {
 //         return done(error, null);

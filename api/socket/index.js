@@ -41,7 +41,6 @@ function initializeSocketHandlers(io) {
     userNamespace.use(socketAuthMiddleware)
 
     userNamespace.on("connection", (socket) => {
-        console.log(`✅ User connected: ${socket.userId} (${socket.id})`)
         socket.join(`user:${socket.userId}`)
 
         // Join admin room if admin (for backward compatibility)
@@ -58,7 +57,6 @@ function initializeSocketHandlers(io) {
         registerFeaturedHandlers(userNamespace, socket)
 
         socket.on("disconnect", (reason) => {
-            console.log(`❌ User disconnected: ${socket.userId} - Reason: ${reason}`)
         })
 
         socket.on("error", (error) => {

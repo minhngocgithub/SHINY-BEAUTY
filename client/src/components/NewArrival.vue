@@ -11,7 +11,7 @@
       <div
         class="text-[#5a4098] hover:underline hover:text-rose-600 hidden md:block"
       >
-        <router-link to="/products/sales">See more</router-link>
+        <router-link to="/shop/new-arrivals">See more</router-link>
       </div>
     </div>
 
@@ -127,7 +127,7 @@ const fetchNewArrivals = async () => {
     loading.value = true;
     error.value = null;
     // Fetch products
-    const productsRes = await getNewProductApi();
+    const productsRes = await getNewProductApi({ limit: 10 });
     if (
       productsRes &&
       productsRes.data &&

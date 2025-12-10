@@ -8,8 +8,8 @@ export const searchProductApi = async (query) => {
     return await axiosApiInstance.get(`${BASE_PRODUCT_API}/search?${query}`)
 }
 
-export const getBestSellerApi = async (data) => {
-    return await axiosApiInstance.get(`${BASE_PRODUCT_API}/bestSeller`, data)
+export const getBestSellerApi = async (params = {}) => {
+    return await axiosApiInstance.get(`${BASE_PRODUCT_API}/bestSeller`, { params })
 }
 
 export const getTrendingProductsApi = async (params = {}) => {
@@ -17,8 +17,8 @@ export const getTrendingProductsApi = async (params = {}) => {
     return await axiosApiInstance.get(`${BASE_PRODUCT_API}/trending${queryString ? `?${queryString}` : ''}`)
 }
 
-export const getNewProductApi = async (data) => {
-    return await axiosApiInstance.get(`${BASE_PRODUCT_API}/newProduct`, data)
+export const getNewProductApi = async (params = {}) => {
+    return await axiosApiInstance.get(`${BASE_PRODUCT_API}/newProduct`, { params })
 }
 
 export const getAllProductsApi = async (params = {}) => {
@@ -191,6 +191,10 @@ export const updateStockApi = async (productId, stock) => {
 // Product availability
 export const toggleAvailabilityApi = async (productId) => {
     return await axiosApiInstance.patch(`${BASE_PRODUCT_API}/${productId}/toggle-availability`)
+}
+
+export const toggleActiveStatusApi = async (productId) => {
+    return await axiosApiInstance.patch(`${BASE_PRODUCT_API}/${productId}/toggle-active`)
 }
 
 // Featured product

@@ -1,5 +1,5 @@
 <template>
-  <section class="relative ">
+  <section class="relative">
     <nav class="bg-white shadow-sm">
       <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16 gap-4">
@@ -21,7 +21,6 @@
             <SearchWrapper />
           </div>
 
-          <!-- Right Section: Wishlist, Loyalty & Profile -->
           <div class="flex items-center gap-2 sm:gap-3">
             <!-- Wishlist Button -->
             <router-link
@@ -59,7 +58,9 @@
               </span>
             </router-link>
 
-            <!-- Loyalty Points (only for logged in users) -->
+            <!-- Notification Bell (only for logged in users) -->
+            <NotificationBell v-if="authStore.isLoggedIn" />
+
             <router-link
               v-if="authStore.isLoggedIn"
               to="/account/profile"
@@ -503,6 +504,7 @@ import {
 } from "../../utils/sweetAlert";
 import SearchWrapper from "../components/search/SearchWrapper.vue";
 import Avatar from "../components/atoms/Avatar.vue";
+import NotificationBell from "../components/notification/NotificationBell.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();

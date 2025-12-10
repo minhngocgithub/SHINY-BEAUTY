@@ -111,9 +111,85 @@ const initArchiveOldReviewsJob = () => {
         }
     })
 }
+
+// Cache best testimonials every 30 days (runs on 1st of each month at 5 AM)
+const initCacheTestimonialsJob = () => {
+    cron.schedule('0 5 1 * *', async () => {
+        try {
+            console.log('🌟 Running cache testimonials...')
+
+            // Get top 5-star reviews with most helpful votes
+            const testimonials = await Review.find({
+                rating: 5,
+                status: 'published',
+                reviewType: 'rating',
+                verifiedPurchase: true,
+                comment: { $exists: true, $ne: '' }
+            })
+                .populate('user', 'name avatar')
+                .populate('product', 'name image')
+                .sort({ 'helpful.length': -1, createdAt: -1 })
+                .limit(20)
+                .lean()
+
+            // Filter reviews with meaningful comments (at least 30 characters)
+            const qualityTestimonials = testimonials.filter(
+                review => review.comment && review.comment.length >= 30
+            ).slice(0, 8)
+
+            // Cache the testimonials (using Redis if available, else store in memory)
+            global.cachedTestimonials = {
+                data: qualityTestimonials,
+                cachedAt: new Date(),
+                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+            }
+
+            console.log(`✔ Cached ${qualityTestimonials.length} testimonials`)
+
+        } catch (error) {
+            console.error('❌ Cache testimonials error:', error)
+        }
+    })
+
+    // Also run once on startup
+    setTimeout(async () => {
+        try {
+            if (!global.cachedTestimonials || new Date() > new Date(global.cachedTestimonials?.expiresAt)) {
+                console.log('🌟 Initial testimonials cache...')
+                const testimonials = await Review.find({
+                    rating: 5,
+                    status: 'published',
+                    reviewType: 'rating',
+                    verifiedPurchase: true,
+                    comment: { $exists: true, $ne: '' }
+                })
+                    .populate('user', 'name avatar')
+                    .populate('product', 'name image')
+                    .sort({ 'helpful.length': -1, createdAt: -1 })
+                    .limit(20)
+                    .lean()
+
+                const qualityTestimonials = testimonials.filter(
+                    review => review.comment && review.comment.length >= 30
+                ).slice(0, 8)
+
+                global.cachedTestimonials = {
+                    data: qualityTestimonials,
+                    cachedAt: new Date(),
+                    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                }
+                console.log(`✔ Initial cached ${qualityTestimonials.length} testimonials`)
+            }
+        } catch (error) {
+            console.error('❌ Initial cache testimonials error:', error)
+        }
+    }, 5000) // Wait 5 seconds after startup
+}
+
 module.exports = {
     initAutoPublishReviewsJob,
     initUpdateProductRatingsJob,
     initCleanupFlaggedReviewsJob,
-    initArchiveOldReviewsJob
+    initArchiveOldReviewsJob,
+    initCacheTestimonialsJob
 };

@@ -3,14 +3,23 @@ const NotificationService = require("../services/notification.service")
 const { asyncHandler } = require("../middleware/errorHandler.middleware")
 
 const getNotifications = asyncHandler(async (req, res) => {
-    const { limit = 20 } = req.query
+    const { limit = 20, offset = 0, unreadOnly = false } = req.query
 
-    const notifications = await NotificationService.getNotifications(req.user._id, Number.parseInt(limit))
+    // Call service with options and normalize result
+    const result = await NotificationService.getNotifications(req.user._id, {
+        limit: Number.parseInt(limit),
+        offset: Number.parseInt(offset),
+        unreadOnly: unreadOnly === 'true' || unreadOnly === true
+    })
+
+    // result is { notifications: [...], pagination: {...} }
+    const notifications = Array.isArray(result.notifications) ? result.notifications : []
 
     res.status(200).json({
         success: true,
         count: notifications.length,
         notifications,
+        pagination: result.pagination || { total: notifications.length, limit: Number.parseInt(limit), offset: Number.parseInt(offset) }
     })
 })
 
@@ -26,17 +35,19 @@ const markAsRead = asyncHandler(async (req, res) => {
 })
 
 const markAllAsRead = asyncHandler(async (req, res) => {
-    const notifications = await NotificationService.getNotifications(req.user._id)
+    const result = await NotificationService.markAllAsRead(req.user._id)
 
-    for (const notif of notifications) {
-        if (!notif.read) {
-            await NotificationService.markAsRead(req.user._id, notif.id)
-        }
+    if (result && result.success) {
+        return res.status(200).json({
+            success: true,
+            message: 'All notifications marked as read',
+            updated: result.updated || 0
+        })
     }
 
-    res.status(200).json({
-        success: true,
-        message: "All notifications marked as read",
+    res.status(500).json({
+        success: false,
+        message: 'Failed to mark all notifications as read'
     })
 })
 

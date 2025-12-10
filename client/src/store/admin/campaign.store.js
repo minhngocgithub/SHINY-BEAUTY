@@ -170,7 +170,7 @@ export const useCampaignStore = defineStore('campaign', {
         /**
          * Create new campaign
          */
-        async create(campaignData) {
+        async createCampaign(campaignData) {
             try {
                 this.saving = true;
                 this.error = null;
@@ -194,7 +194,7 @@ export const useCampaignStore = defineStore('campaign', {
         /**
          * Update campaign
          */
-        async update(id, campaignData) {
+        async updateCampaign(id, campaignData) {
             try {
                 this.saving = true;
                 this.error = null;

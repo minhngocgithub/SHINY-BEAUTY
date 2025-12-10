@@ -1,96 +1,151 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h2>{{ isEdit ? "Edit Campaign" : "Create New Campaign" }}</h2>
-        <button @click="$emit('close')" class="close-btn">✕</button>
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/50 backdrop-blur-sm"
+    @click.self="$emit('close')"
+  >
+    <div
+      class="bg-white dark:bg-slate-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+    >
+      <!-- Header -->
+      <div
+        class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700"
+      >
+        <h2 class="text-2xl font-bold text-slate-900 dark:text-white">
+          {{ isEdit ? "Edit Campaign" : "Create New Campaign" }}
+        </h2>
+        <button
+          @click="$emit('close')"
+          class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-slate-300 transition-colors"
+        >
+          <span class="text-2xl">✕</span>
+        </button>
       </div>
 
-      <div class="modal-body">
-        <form @submit.prevent="handleSubmit">
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto p-6">
+        <form @submit.prevent="handleSubmit" class="space-y-8">
           <!-- Basic Information -->
-          <div class="form-section">
-            <h3 class="section-title">Basic Information</h3>
+          <div>
+            <h3
+              class="text-lg font-semibold text-slate-900 dark:text-white mb-4 pb-2 border-b-2 border-slate-100 dark:border-slate-700"
+            >
+              Basic Information
+            </h3>
 
-            <div class="form-group">
-              <label class="form-label">Campaign Name *</label>
+            <div class="mb-5">
+              <label
+                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Campaign Name *
+              </label>
               <input
                 v-model="formData.name"
                 type="text"
-                class="form-input"
-                placeholder="e.g., Summer Sale 2024"
+                class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white transition-all"
+                placeholder="e.g., Christmas Sale 2025"
                 required
               />
             </div>
 
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Category *</label>
+            <div class="grid grid-cols-2 gap-4 mb-5">
+              <div>
+                <label
+                  class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+                >
+                  Category *
+                </label>
                 <select
                   v-model="formData.category"
-                  class="form-select"
+                  class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white transition-all"
                   required
                 >
                   <option value="">Select category</option>
-                  <option value="promotional">Promotional</option>
-                  <option value="newsletter">Newsletter</option>
-                  <option value="flash_sale">Flash Sale</option>
-                  <option value="new_product">New Product</option>
-                  <option value="abandoned_cart">Abandoned Cart</option>
-                  <option value="seasonal">Seasonal</option>
-                  <option value="birthday_offer">Birthday Offer</option>
-                  <option value="loyalty_reward">Loyalty Reward</option>
-                  <option value="price_drop">Price Drop</option>
-                  <option value="back_in_stock">Back in Stock</option>
+                  <option value="FLASH_SALE">🔥 Flash Sale</option>
+                  <option value="NEW_PRODUCT">✨ New Product</option>
+                  <option value="PRICE_DROP">💰 Price Drop</option>
+                  <option value="BACK_IN_STOCK">📦 Back in Stock</option>
+                  <option value="ABANDONED_CART">🛒 Abandoned Cart</option>
+                  <option value="BIRTHDAY_OFFER">🎂 Birthday Offer</option>
+                  <option value="LOYALTY_UPDATE">⭐ Loyalty Update</option>
+                  <option value="NEWSLETTER">📰 Newsletter</option>
+                  <option value="PROMOTION">🎁 Promotion</option>
+                  <option value="ANNOUNCEMENT">📢 Announcement</option>
                 </select>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Template</label>
-                <select v-model="formData.template" class="form-select">
-                  <option value="generic">Generic</option>
-                  <option value="flashSale">Flash Sale</option>
-                  <option value="newProduct">New Product</option>
-                  <option value="priceDrop">Price Drop</option>
-                  <option value="backInStock">Back in Stock</option>
-                  <option value="abandonedCart">Abandoned Cart</option>
-                  <option value="birthdayOffer">Birthday Offer</option>
-                  <option value="newsletter">Newsletter</option>
+              <div>
+                <label
+                  class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+                >
+                  Email Template *
+                </label>
+                <select
+                  v-model="formData.template"
+                  class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white transition-all"
+                  required
+                >
+                  <option value="generic">📧 Generic</option>
+                  <option value="flashSale">⚡ Flash Sale</option>
+                  <option value="newProduct">✨ New Product</option>
+                  <option value="priceDrop">💸 Price Drop</option>
+                  <option value="backInStock">📦 Back in Stock</option>
+                  <option value="abandonedCart">🛒 Abandoned Cart</option>
+                  <option value="birthdayOffer">🎂 Birthday Offer</option>
+                  <option value="newsletter">📰 Newsletter</option>
+                  <option value="christmas2025">
+                    🎄 Christmas 2025 Special
+                  </option>
                 </select>
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Email Subject *</label>
+            <div class="mb-5">
+              <label
+                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Email Subject *
+              </label>
               <input
                 v-model="formData.subject"
                 type="text"
-                class="form-input"
-                placeholder="e.g., 🔥 50% Off Summer Collection - Limited Time!"
+                class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white transition-all"
+                placeholder="e.g., 🎄 Merry Christmas! Special 50% OFF Just For You 🎁"
                 required
               />
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Preview Text</label>
+            <div class="mb-5">
+              <label
+                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Preview Text
+              </label>
               <input
                 v-model="formData.previewText"
                 type="text"
-                class="form-input"
+                class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white transition-all"
                 placeholder="Short preview text shown in email clients"
               />
             </div>
           </div>
 
           <!-- Target Audience -->
-          <div class="form-section">
-            <h3 class="section-title">Target Audience</h3>
+          <div>
+            <h3
+              class="text-lg font-semibold text-slate-900 dark:text-white mb-4 pb-2 border-b-2 border-slate-100 dark:border-slate-700"
+            >
+              Target Audience
+            </h3>
 
-            <div class="form-group">
-              <label class="form-label">Audience Type *</label>
+            <div class="mb-5">
+              <label
+                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Audience Type *
+              </label>
               <select
                 v-model="formData.targetAudience.type"
-                class="form-select"
+                class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white transition-all"
                 required
               >
                 <option value="all">All Users</option>
@@ -101,118 +156,256 @@
 
             <div
               v-if="formData.targetAudience.type === 'segments'"
-              class="form-group"
+              class="mb-5"
             >
-              <label class="form-label">Segments</label>
-              <div class="checkbox-group">
-                <label class="checkbox-label">
+              <label
+                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Segments
+              </label>
+              <div class="flex flex-col gap-3">
+                <label
+                  class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     value="vip"
                     v-model="formData.targetAudience.segments"
+                    class="w-4 h-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
                   <span>VIP Customers</span>
                 </label>
-                <label class="checkbox-label">
+                <label
+                  class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     value="new_customers"
                     v-model="formData.targetAudience.segments"
+                    class="w-4 h-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
                   <span>New Customers</span>
                 </label>
-                <label class="checkbox-label">
+                <label
+                  class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     value="inactive_customers"
                     v-model="formData.targetAudience.segments"
+                    class="w-4 h-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
                   <span>Inactive Customers</span>
                 </label>
-                <label class="checkbox-label">
+                <label
+                  class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
                   <input
                     type="checkbox"
                     value="high_spenders"
                     v-model="formData.targetAudience.segments"
+                    class="w-4 h-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                   />
                   <span>High Spenders</span>
                 </label>
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Exclude Previous Recipients</label>
-              <div class="checkbox-group">
-                <label class="checkbox-label">
-                  <input
-                    type="checkbox"
-                    v-model="formData.excludePreviousRecipients"
-                  />
-                  <span
-                    >Don't send to users who received this campaign before</span
-                  >
-                </label>
-              </div>
+            <div>
+              <label
+                class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  v-model="formData.excludePreviousRecipients"
+                  class="w-4 h-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                />
+                <span
+                  >Don't send to users who received this campaign before</span
+                >
+              </label>
             </div>
           </div>
 
           <!-- Email Content -->
-          <div class="form-section">
-            <h3 class="section-title">Email Content</h3>
+          <div>
+            <h3
+              class="text-lg font-semibold text-slate-900 dark:text-white mb-4 pb-2 border-b-2 border-slate-100 dark:border-slate-700"
+            >
+              Email Content
+            </h3>
 
-            <div class="form-group">
-              <label class="form-label">Content Data (JSON)</label>
+            <!-- Template Helper for Christmas 2025 -->
+            <div
+              v-if="formData.template === 'christmas2025'"
+              class="bg-gradient-to-r from-red-600 to-red-700 rounded-xl p-5 mb-5 text-white shadow-lg"
+            >
+              <div class="text-base font-bold mb-3 flex items-center gap-2">
+                🎄 Christmas 2025 Template Guide
+              </div>
+              <div class="bg-white/15 backdrop-blur-md rounded-lg p-4">
+                <p class="mb-2 font-semibold text-sm">Available fields:</p>
+                <ul class="text-xs leading-relaxed ml-5 space-y-1 mb-4">
+                  <li>
+                    <code
+                      class="bg-white/20 px-1.5 py-0.5 rounded font-mono text-xs"
+                      >userName</code
+                    >
+                    - Customer name (auto-filled)
+                  </li>
+                  <li>
+                    <code
+                      class="bg-white/20 px-1.5 py-0.5 rounded font-mono text-xs"
+                      >message</code
+                    >
+                    - Main Christmas message
+                  </li>
+                  <li>
+                    <code
+                      class="bg-white/20 px-1.5 py-0.5 rounded font-mono text-xs"
+                      >discount</code
+                    >
+                    - Discount percentage (number)
+                  </li>
+                  <li>
+                    <code
+                      class="bg-white/20 px-1.5 py-0.5 rounded font-mono text-xs"
+                      >products</code
+                    >
+                    - Array of products with: name, description, image,
+                    originalPrice, salePrice, savings
+                  </li>
+                  <li>
+                    <code
+                      class="bg-white/20 px-1.5 py-0.5 rounded font-mono text-xs"
+                      >actionUrl</code
+                    >
+                    - CTA button link
+                  </li>
+                  <li>
+                    <code
+                      class="bg-white/20 px-1.5 py-0.5 rounded font-mono text-xs"
+                      >endsAt</code
+                    >
+                    - Offer end date (ISO string)
+                  </li>
+                  <li>
+                    <code
+                      class="bg-white/20 px-1.5 py-0.5 rounded font-mono text-xs"
+                      >additionalMessage</code
+                    >
+                    - Special note
+                  </li>
+                  <li>
+                    <code
+                      class="bg-white/20 px-1.5 py-0.5 rounded font-mono text-xs"
+                      >socialLinks</code
+                    >
+                    - Object with facebook, instagram, twitter
+                  </li>
+                </ul>
+                <button
+                  type="button"
+                  @click="useChristmasExample"
+                  class="bg-white text-red-600 px-4 py-2 rounded-lg font-semibold text-xs hover:bg-orange-50 transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg"
+                >
+                  📋 Use Christmas Example
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label
+                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Content Data (JSON)
+              </label>
               <textarea
                 v-model="contentDataString"
-                class="form-textarea"
-                rows="8"
+                :rows="formData.template === 'christmas2025' ? 12 : 8"
+                class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white font-mono resize-y transition-all"
                 placeholder='{"title": "Summer Sale", "message": "50% off all items", "ctaText": "Shop Now", "ctaLink": "https://..."}'
               ></textarea>
-              <p class="form-hint">
-                Template variables depend on selected template. Common: title,
-                message, ctaText, ctaLink, productName, discount, etc.
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                Template variables depend on selected template.
+                <span
+                  v-if="formData.template === 'christmas2025'"
+                  class="text-red-600 dark:text-red-400 font-semibold"
+                >
+                  🎅 Christmas template supports: message, discount, products,
+                  actionUrl, endsAt, additionalMessage
+                </span>
+                <span v-else>
+                  Common: title, message, ctaText, ctaLink, productName,
+                  discount, etc.
+                </span>
               </p>
             </div>
           </div>
 
           <!-- Scheduling -->
-          <div class="form-section">
-            <h3 class="section-title">Scheduling</h3>
+          <div>
+            <h3
+              class="text-lg font-semibold text-slate-900 dark:text-white mb-4 pb-2 border-b-2 border-slate-100 dark:border-slate-700"
+            >
+              Scheduling
+            </h3>
 
-            <div class="form-group">
-              <label class="form-label">Send Timing</label>
-              <select v-model="sendTiming" class="form-select">
+            <div class="mb-5">
+              <label
+                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Send Timing
+              </label>
+              <select
+                v-model="sendTiming"
+                class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white transition-all"
+              >
                 <option value="now">Send Immediately</option>
                 <option value="schedule">Schedule for Later</option>
               </select>
             </div>
 
-            <div v-if="sendTiming === 'schedule'" class="form-group">
-              <label class="form-label">Scheduled Date & Time</label>
+            <div v-if="sendTiming === 'schedule'">
+              <label
+                class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2"
+              >
+                Scheduled Date & Time
+              </label>
               <input
                 v-model="formData.scheduledAt"
                 type="datetime-local"
-                class="form-input"
+                class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white transition-all"
               />
             </div>
           </div>
-
-          <!-- Actions -->
-          <div class="modal-footer">
-            <button type="button" @click="$emit('close')" class="btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" class="btn-primary">
-              {{
-                isEdit
-                  ? "Update Campaign"
-                  : sendTiming === "now"
-                  ? "Create & Send"
-                  : "Create Campaign"
-              }}
-            </button>
-          </div>
         </form>
+      </div>
+
+      <!-- Footer -->
+      <div
+        class="flex justify-end gap-3 p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50"
+      >
+        <button
+          type="button"
+          @click="$emit('close')"
+          class="px-6 py-2.5 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-600 transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          @click="handleSubmit"
+          type="button"
+          class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-purple-700 hover:-translate-y-0.5 shadow-md hover:shadow-lg transition-all"
+        >
+          {{
+            isEdit
+              ? "Update Campaign"
+              : sendTiming === "now"
+              ? "Create & Send"
+              : "Create Campaign"
+          }}
+        </button>
       </div>
     </div>
   </div>
@@ -309,205 +502,108 @@ const handleSubmit = () => {
     return;
   }
 
-  // Remove scheduledAt if sending now
-  if (sendTiming.value === "now") {
-    formData.value.scheduledAt = null;
+  // Validate required fields
+  if (
+    !formData.value.name ||
+    !formData.value.category ||
+    !formData.value.subject
+  ) {
+    alert("Please fill in all required fields");
+    return;
   }
 
-  emit("save", formData.value);
+  // Validate scheduled date
+  if (sendTiming.value === "schedule" && !formData.value.scheduledAt) {
+    alert("Please select a scheduled date and time");
+    return;
+  }
+
+  // Prepare payload theo đúng API backend
+  const payload = {
+    name: formData.value.name,
+    type: "EMAIL",
+    category: formData.value.category,
+    subject: formData.value.subject,
+    emailTemplate: formData.value.template,
+    emailContent: formData.value.contentData,
+    targetSegment: mapTargetAudience(formData.value.targetAudience.type),
+    segmentFilters: buildSegmentFilters(),
+    sendImmediately: sendTiming.value === "now",
+    priority: "NORMAL",
+  };
+
+  // Add scheduledAt if scheduling
+  if (sendTiming.value === "schedule" && formData.value.scheduledAt) {
+    payload.scheduledAt = new Date(formData.value.scheduledAt).toISOString();
+  } else if (sendTiming.value === "now") {
+    // Ensure sendImmediately is true and scheduledAt is null for immediate send
+    payload.sendImmediately = true;
+  }
+
+  console.log("📤 Submitting campaign payload:", payload);
+  emit("save", payload);
+};
+
+// Map target audience type
+const mapTargetAudience = (type) => {
+  const mapping = {
+    all: "ALL_USERS",
+    segments: "CUSTOM_QUERY",
+    specific_users: "CUSTOM_QUERY",
+  };
+  return mapping[type] || "ALL_USERS";
+};
+
+// Build segment filters
+const buildSegmentFilters = () => {
+  if (formData.value.targetAudience.type === "segments") {
+    return {
+      customQuery: {
+        // Map segments to query conditions
+        // Ví dụ: nếu có segment "vip", filter users với loyalty tier
+      },
+    };
+  }
+  return {};
+};
+
+// Christmas template example
+const useChristmasExample = () => {
+  const christmasExample = {
+    message:
+      "Wishing you a magical Christmas filled with joy, love, and beauty! 🌟",
+    discount: "50",
+    products: [
+      {
+        name: "Christmas Glow Serum",
+        description: "24K gold-infused serum for radiant holiday skin",
+        image: "https://example.com/serum.jpg",
+        originalPrice: "89.99",
+        salePrice: "44.99",
+        savings: "45.00",
+      },
+      {
+        name: "Festive Red Lipstick Set",
+        description: "5 stunning red shades perfect for Christmas parties",
+        image: "https://example.com/lipstick.jpg",
+        originalPrice: "59.99",
+        salePrice: "29.99",
+        savings: "30.00",
+      },
+    ],
+    actionUrl: "https://shinybeauty.com/christmas-sale",
+    endsAt: "2025-12-26T23:59:59.000Z",
+    additionalMessage:
+      "Free gift wrapping on all Christmas orders! Plus free shipping over $50.",
+    socialLinks: {
+      facebook: "https://facebook.com/shinybeauty",
+      instagram: "https://instagram.com/shinybeauty",
+      twitter: "https://twitter.com/shinybeauty",
+    },
+  };
+
+  contentDataString.value = JSON.stringify(christmasExample, null, 2);
+  formData.value.contentData = christmasExample;
 };
 </script>
 
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-container {
-  background: white;
-  border-radius: 16px;
-  max-width: 800px;
-  width: 100%;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-.modal-header {
-  padding: 24px;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #6b7280;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: background 0.2s;
-}
-
-.close-btn:hover {
-  background: #f3f4f6;
-}
-
-.modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-}
-
-.form-section {
-  margin-bottom: 32px;
-}
-
-.form-section:last-child {
-  margin-bottom: 0;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #f3f4f6;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.form-label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
-}
-
-.form-input,
-.form-select,
-.form-textarea {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: border-color 0.2s;
-}
-
-.form-input:focus,
-.form-select:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.form-textarea {
-  font-family: "Courier New", monospace;
-  resize: vertical;
-}
-
-.form-hint {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 6px;
-}
-
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #374151;
-  cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.modal-footer {
-  padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  background: #f9fafb;
-}
-
-.btn-primary,
-.btn-secondary {
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-secondary {
-  background: white;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-}
-
-.btn-secondary:hover {
-  background: #f9fafb;
-}
-</style>

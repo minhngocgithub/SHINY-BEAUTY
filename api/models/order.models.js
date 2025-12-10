@@ -1,5 +1,4 @@
 const mongoose = require("mongoose")
-const LoyaltyService = require("../utils/loyalty.utils")
 
 const orderSchema = new mongoose.Schema(
   {
@@ -39,12 +38,17 @@ const orderSchema = new mongoose.Schema(
       postalCode: { type: String, required: true },
       country: { type: String, required: true },
       phone: { type: String, required: true },
+      // GPS coordinates for exact delivery location (optional)
+      coordinates: {
+        lat: { type: Number, required: false },
+        lng: { type: Number, required: false },
+      },
     },
 
     paymentMethod: {
       type: String,
       required: true,
-      enum: ["COD", "VNPAY", "MOMO", "BANK_TRANSFER"],
+      enum: ["COD", "VNPAY", "MOMO", "PAYPAL", "BANK_TRANSFER"],
     },
 
     paymentResult: {
@@ -103,6 +107,11 @@ const orderSchema = new mongoose.Schema(
     loyaltyPointsEarned: {
       type: Number,
       default: 0,
+    },
+
+    loyaltyPointsAwarded: {
+      type: Boolean,
+      default: false,
     },
     loyaltyPointsUsed: {
       type: Number,
@@ -322,6 +331,9 @@ orderSchema.methods.calculateLoyaltyPoints = async function () {
     if (!user) {
       return Math.floor(this.totalPrice / 10000)
     }
+
+    // Require LoyaltyService lazily to avoid circular dependency
+    const LoyaltyService = require('../utils/loyalty.utils')
     return LoyaltyService.calculatePointsToEarn(user, this.totalPrice)
   } catch (error) {
     console.error("Error calculating loyalty points:", error)
@@ -335,6 +347,9 @@ orderSchema.methods.applyLoyaltyDiscount = async function () {
     const user = await User.findById(this.user)
 
     if (!user) return 0
+
+    // Require LoyaltyService lazily to avoid circular dependency
+    const LoyaltyService = require('../utils/loyalty.utils')
 
     // Calculate loyalty discount based on tier
     const discount = LoyaltyService.calculateDiscount(user, this.itemsPrice)
@@ -357,7 +372,8 @@ orderSchema.pre("save", async function (next) {
     return next(new Error(`Total price mismatch. Expected: ${calculatedTotal}, Got: ${this.totalPrice}`))
   }
 
-  if (this.isPaid && this.loyaltyPointsEarned === 0) {
+  // Calculate loyalty points when order is marked as DELIVERED
+  if (this.status === "DELIVERED" && this.loyaltyPointsEarned === 0) {
     this.loyaltyPointsEarned = await this.calculateLoyaltyPoints()
   }
 
@@ -365,21 +381,26 @@ orderSchema.pre("save", async function (next) {
 })
 
 orderSchema.post("save", async (doc) => {
-  if (doc.isPaid && doc.loyaltyPointsEarned > 0) {
+  // Only award loyalty points when order is DELIVERED
+  if (doc.status === "DELIVERED" && doc.loyaltyPointsEarned > 0 && !doc.loyaltyPointsAwarded) {
     try {
       const User = mongoose.model("User")
+      const Order = mongoose.model("Order")
 
-      // Update loyalty points and profile stats
+      // Update loyalty points
       await User.findByIdAndUpdate(doc.user, {
         $inc: {
           "loyaltyProfile.points": doc.loyaltyPointsEarned,
-          "loyaltyProfile.totalSpent": doc.totalPrice,
-          "loyaltyProfile.totalOrders": 1,
-        },
-        $set: {
-          "loyaltyProfile.lastPurchaseDate": new Date(),
         },
       })
+
+      // Mark as awarded to prevent duplicate points (use updateOne to avoid triggering save hook again)
+      await Order.updateOne(
+        { _id: doc._id },
+        { $set: { loyaltyPointsAwarded: true } }
+      )
+
+      console.log(`Awarded ${doc.loyaltyPointsEarned} loyalty points to user ${doc.user} for order ${doc._id}`)
     } catch (error) {
       console.error("Error updating user loyalty profile:", error)
     }

@@ -1,12 +1,15 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-
     <div class="px-4 py-6 mx-auto max-w-7xl">
       <!-- Breadcrumb -->
       <div class="mb-4 text-sm breadcrumb">
-        <router-link to="/" class="text-blue-600 hover:underline">Home</router-link>
+        <router-link to="/" class="text-blue-600 hover:underline"
+          >Home</router-link
+        >
         <span class="mx-2 text-gray-400">/</span>
-        <router-link to="/wishlist" class="text-blue-600 hover:underline">Wishlist</router-link>
+        <router-link to="/wishlist" class="text-blue-600 hover:underline"
+          >Wishlist</router-link
+        >
         <span class="mx-2 text-gray-400">/</span>
         <span class="text-gray-600">Checkout</span>
       </div>
@@ -14,12 +17,18 @@
       <h1 class="mb-6 text-3xl font-bold">Checkout</h1>
 
       <!-- Error Alert -->
-      <div v-if="error" class="p-4 mb-6 text-red-800 border border-red-200 rounded-lg bg-red-50">
+      <div
+        v-if="error"
+        class="p-4 mb-6 text-red-800 border border-red-200 rounded-lg bg-red-50"
+      >
         {{ error }}
       </div>
 
       <!-- Success Alert -->
-      <div v-if="success" class="p-4 mb-6 text-green-800 border border-green-200 rounded-lg bg-green-50">
+      <div
+        v-if="success"
+        class="p-4 mb-6 text-green-800 border border-green-200 rounded-lg bg-green-50"
+      >
         {{ success }}
       </div>
 
@@ -34,94 +43,124 @@
               <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <!-- Full Name -->
                 <div>
-                  <label class="block mb-2 text-sm font-medium text-gray-700">Full Name *</label>
+                  <label class="block mb-2 text-sm font-medium text-gray-700"
+                    >Full Name *</label
+                  >
                   <input
                     v-model="shippingAddress.name"
                     type="text"
                     placeholder="John Doe"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <p v-if="errors.name" class="mt-1 text-xs text-red-600">{{ errors.name }}</p>
+                  <p v-if="errors.name" class="mt-1 text-xs text-red-600">
+                    {{ errors.name }}
+                  </p>
                 </div>
 
                 <!-- Phone -->
                 <div>
-                  <label class="block mb-2 text-sm font-medium text-gray-700">Phone *</label>
+                  <label class="block mb-2 text-sm font-medium text-gray-700"
+                    >Phone *</label
+                  >
                   <input
                     v-model="shippingAddress.phone"
                     type="tel"
                     placeholder="+1 (555) 123-4567"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <p v-if="errors.phone" class="mt-1 text-xs text-red-600">{{ errors.phone }}</p>
+                  <p v-if="errors.phone" class="mt-1 text-xs text-red-600">
+                    {{ errors.phone }}
+                  </p>
                 </div>
               </div>
 
               <!-- Email -->
               <div>
-                <label class="block mb-2 text-sm font-medium text-gray-700">Email *</label>
+                <label class="block mb-2 text-sm font-medium text-gray-700"
+                  >Email *</label
+                >
                 <input
                   v-model="shippingAddress.email"
                   type="email"
                   placeholder="john@example.com"
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <p v-if="errors.email" class="mt-1 text-xs text-red-600">{{ errors.email }}</p>
+                <p v-if="errors.email" class="mt-1 text-xs text-red-600">
+                  {{ errors.email }}
+                </p>
               </div>
 
               <!-- Address -->
               <div>
-                <label class="block mb-2 text-sm font-medium text-gray-700">Street Address *</label>
+                <label class="block mb-2 text-sm font-medium text-gray-700"
+                  >Street Address *</label
+                >
                 <input
                   v-model="shippingAddress.address"
                   type="text"
                   placeholder="123 Main Street"
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <p v-if="errors.address" class="mt-1 text-xs text-red-600">{{ errors.address }}</p>
+                <p v-if="errors.address" class="mt-1 text-xs text-red-600">
+                  {{ errors.address }}
+                </p>
               </div>
 
               <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <!-- City -->
                 <div class="md:col-span-2">
-                  <label class="block mb-2 text-sm font-medium text-gray-700">City *</label>
+                  <label class="block mb-2 text-sm font-medium text-gray-700"
+                    >City *</label
+                  >
                   <input
                     v-model="shippingAddress.city"
                     type="text"
                     placeholder="New York"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <p v-if="errors.city" class="mt-1 text-xs text-red-600">{{ errors.city }}</p>
+                  <p v-if="errors.city" class="mt-1 text-xs text-red-600">
+                    {{ errors.city }}
+                  </p>
                 </div>
 
                 <!-- State -->
                 <div>
-                  <label class="block mb-2 text-sm font-medium text-gray-700">State *</label>
+                  <label class="block mb-2 text-sm font-medium text-gray-700"
+                    >State *</label
+                  >
                   <input
                     v-model="shippingAddress.state"
                     type="text"
                     placeholder="NY"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <p v-if="errors.state" class="mt-1 text-xs text-red-600">{{ errors.state }}</p>
+                  <p v-if="errors.state" class="mt-1 text-xs text-red-600">
+                    {{ errors.state }}
+                  </p>
                 </div>
 
                 <!-- Zip Code -->
                 <div>
-                  <label class="block mb-2 text-sm font-medium text-gray-700">Zip Code *</label>
+                  <label class="block mb-2 text-sm font-medium text-gray-700"
+                    >Zip Code *</label
+                  >
                   <input
                     v-model="shippingAddress.zipCode"
                     type="text"
                     placeholder="10001"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <p v-if="errors.zipCode" class="mt-1 text-xs text-red-600">{{ errors.zipCode }}</p>
+                  <p v-if="errors.zipCode" class="mt-1 text-xs text-red-600">
+                    {{ errors.zipCode }}
+                  </p>
                 </div>
               </div>
 
               <!-- Notes -->
               <div>
-                <label class="block mb-2 text-sm font-medium text-gray-700">Order Notes (Optional)</label>
+                <label class="block mb-2 text-sm font-medium text-gray-700"
+                  >Order Notes (Optional)</label
+                >
                 <textarea
                   v-model="shippingAddress.notes"
                   placeholder="Add any special instructions..."
@@ -141,9 +180,11 @@
                 v-for="method in paymentMethods"
                 :key="method.id"
                 class="flex items-center p-4 transition border-2 rounded-lg cursor-pointer"
-                :class="selectedPaymentMethod === method.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'"
+                :class="
+                  selectedPaymentMethod === method.id
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                "
               >
                 <input
                   type="radio"
@@ -159,18 +200,27 @@
               </label>
             </div>
 
-            <!-- Stripe Card Input (if Stripe selected) -->
-            <div v-if="selectedPaymentMethod === 'stripe'" class="p-4 mt-4 rounded-lg bg-gray-50">
-              <p class="mb-3 text-sm text-gray-600">Card information will be securely processed by Stripe</p>
-              <div id="card-element" class="p-4 bg-white border border-gray-300 rounded"></div>
-              <p v-if="cardError" class="mt-2 text-xs text-red-600">{{ cardError }}</p>
-            </div>
+            <!-- MoMo Payment Form -->
+            <MoMoPaymentForm
+              v-if="selectedPaymentMethod === 'momo'"
+              @update:valid="momoFormValid = $event"
+              @update:data="momoFormData = $event"
+            />
+
+            <!-- PayPal Payment Form -->
+            <PayPalPaymentForm
+              v-if="selectedPaymentMethod === 'paypal'"
+              @update:valid="paypalFormValid = $event"
+              @update:data="paypalFormData = $event"
+            />
           </div>
         </div>
 
         <!-- Right: Order Summary -->
         <div class="lg:col-span-1">
-          <div class="sticky overflow-hidden shadow-lg top-4 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 rounded-2xl">
+          <div
+            class="sticky overflow-hidden shadow-lg top-4 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 rounded-2xl"
+          >
             <div class="p-6 text-white">
               <h3 class="mb-4 text-xl font-bold">Order Summary</h3>
 
@@ -182,8 +232,15 @@
                   class="flex items-center justify-between p-2 text-sm rounded bg-white/20"
                 >
                   <div class="flex-1">
-                    <p class="line-clamp-1">{{ item.product?.name }}</p>
-                    <p class="text-xs text-white/80">${{ (item.product?.salePrice || item.product?.price).toFixed(2) }}</p>
+                    <p class="line-clamp-1">
+                      {{ item.product?.name || item.bundle?.name }}
+                    </p>
+                    <p class="text-xs text-white/80">
+                      ${{ (item.finalPrice || 0).toFixed(2) }}
+                      <span v-if="item.quantity > 1" class="opacity-70">
+                        (×{{ item.quantity }})</span
+                      >
+                    </p>
                   </div>
                   <button
                     @click="removeItem(item._id)"
@@ -200,15 +257,26 @@
                   <span>Subtotal</span>
                   <span>${{ subtotal.toFixed(2) }}</span>
                 </div>
+                <div v-if="discount > 0" class="flex justify-between text-sm">
+                  <span>Discount</span>
+                  <span class="text-red-300">-${{ discount.toFixed(2) }}</span>
+                </div>
                 <div class="flex justify-between text-sm">
                   <span>Shipping</span>
-                  <span>${{ shippingCost.toFixed(2) }}</span>
+                  <span
+                    v-if="shippingCost === 0"
+                    class="font-semibold text-green-300"
+                    >FREE</span
+                  >
+                  <span v-else>${{ shippingCost.toFixed(2) }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
                   <span>Tax (10%)</span>
                   <span>${{ tax.toFixed(2) }}</span>
                 </div>
-                <div class="flex justify-between pt-2 text-lg font-bold border-t border-white/30">
+                <div
+                  class="flex justify-between pt-2 text-lg font-bold border-t border-white/30"
+                >
                   <span>Total</span>
                   <span>${{ totalAmount.toFixed(2) }}</span>
                 </div>
@@ -220,7 +288,11 @@
                 :disabled="isProcessing || checkoutItems.length === 0"
                 class="w-full px-4 py-3 font-bold text-blue-600 transition-colors bg-white rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {{ isProcessing ? 'Processing...' : `Pay $${totalAmount.toFixed(2)}` }}
+                {{
+                  isProcessing
+                    ? "Processing..."
+                    : `Pay $${totalAmount.toFixed(2)}`
+                }}
               </button>
 
               <!-- Security Info -->
@@ -239,10 +311,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import Header from '../../components/Header.vue'
-import Footer from '../../components/Footer.vue'
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import Header from "../../components/Header.vue";
+import Footer from "../../components/Footer.vue";
 import {
   createOrderWithPaymentApi,
   validateShippingAddress,
@@ -255,164 +327,197 @@ import {
   getPaymentErrorMessage,
   PAYMENT_METHODS,
   getPaymentMethodLabel,
-  getPaymentMethodDescription
-} from '../../service/payment.service'
+  getPaymentMethodDescription,
+} from "../../service/payment.service";
 
-const router = useRouter()
+const router = useRouter();
 
 // State
-const checkoutItems = ref([])
+const checkoutItems = ref([]);
 const shippingAddress = ref({
-  name: '',
-  phone: '',
-  email: '',
-  address: '',
-  city: '',
-  state: '',
-  zipCode: '',
-  country: 'US',
-  notes: ''
-})
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  country: "US",
+  notes: "",
+});
 
-const selectedPaymentMethod = ref(PAYMENT_METHODS.COD)
-const isProcessing = ref(false)
-const error = ref(null)
-const success = ref(null)
-const errors = ref({})
-const cardError = ref(null)
-const shippingCost = ref(9.99)
+const selectedPaymentMethod = ref(PAYMENT_METHODS.COD);
+const isProcessing = ref(false);
+const error = ref(null);
+const success = ref(null);
+const errors = ref({});
+const cardError = ref(null);
 
 const paymentMethods = [
   {
     id: PAYMENT_METHODS.STRIPE,
-    label: 'Credit Card',
-    description: 'Visa, Mastercard, American Express',
-    icon: '💳'
+    label: "Credit Card",
+    description: "Visa, Mastercard, American Express",
+    icon: "💳",
   },
   {
     id: PAYMENT_METHODS.MOMO,
-    label: 'MoMo Wallet',
-    description: 'Vietnam Mobile Money',
-    icon: '📱'
+    label: "MoMo Wallet",
+    description: "Vietnam Mobile Money",
+    icon: "📱",
   },
   {
     id: PAYMENT_METHODS.ZALOPAY,
-    label: 'ZaloPay',
-    description: 'Vietnam E-Wallet',
-    icon: '📱'
+    label: "ZaloPay",
+    description: "Vietnam E-Wallet",
+    icon: "📱",
   },
   {
     id: PAYMENT_METHODS.COD,
-    label: 'Cash on Delivery',
-    description: 'Pay when you receive your order',
-    icon: '💵'
-  }
-]
+    label: "Cash on Delivery",
+    description: "Pay when you receive your order",
+    icon: "💵",
+  },
+];
 
 // Load checkout items on mount
 onMounted(() => {
-  const items = sessionStorage.getItem('checkoutItems')
+  const items = sessionStorage.getItem("checkoutItems");
   if (items) {
     try {
-      checkoutItems.value = JSON.parse(items)
+      checkoutItems.value = JSON.parse(items);
+      console.log("[CheckoutPayment] Loaded items:", checkoutItems.value);
     } catch (err) {
-      error.value = 'Failed to load checkout items'
+      error.value = "Failed to load checkout items";
     }
   } else {
-    error.value = 'No items in checkout. Redirecting...'
-    setTimeout(() => router.push('/wishlist'), 2000)
+    error.value = "No items in checkout. Redirecting...";
+    setTimeout(() => router.push("/wishlist"), 2000);
   }
-})
+});
 
-// Computed
-const subtotal = computed(() => {
-  return checkoutItems.value.reduce((sum, item) => {
-    const price = item.product?.salePrice || item.product?.price || 0
-    return sum + price
-  }, 0)
-})
+// Use calculateOrderPricing service for accurate calculations
+const pricing = computed(() => {
+  if (checkoutItems.value.length === 0) {
+    return {
+      subtotal: 0,
+      totalDiscount: 0,
+      shippingPrice: 0,
+      taxPrice: 0,
+      totalPrice: 0,
+    };
+  }
 
-const tax = computed(() => {
-  return subtotal.value * 0.1
-})
+  // Map items to format expected by calculateOrderPricing
+  // Note: backend already multiplied finalPrice by quantity, so divide to get unit price
+  const items = checkoutItems.value.map((item) => ({
+    _id: item._id,
+    quantity: item.quantity || 1,
+    itemType: item.itemType,
+    product: item.product || null,
+    bundle: item.bundle || null,
+    finalPrice: item.finalPrice ? item.finalPrice / (item.quantity || 1) : 0,
+    originalPrice: item.originalPrice
+      ? item.originalPrice / (item.quantity || 1)
+      : 0,
+  }));
 
-const totalAmount = computed(() => {
-  return subtotal.value + shippingCost.value + tax.value
-})
+  return calculateOrderPricing(
+    items,
+    0,
+    0,
+    {},
+    {
+      userLoyaltyTier: null,
+      shippingAddress: shippingAddress.value,
+      paymentMethod: selectedPaymentMethod.value,
+    }
+  );
+});
+
+// Computed properties from pricing
+const subtotal = computed(() => pricing.value.subtotal || 0);
+const discount = computed(() => pricing.value.totalDiscount || 0);
+const tax = computed(() => pricing.value.taxPrice || 0);
+const shippingCost = computed(() => pricing.value.shippingPrice || 0);
+const totalAmount = computed(() => pricing.value.totalPrice || 0);
 
 // Methods
 const removeItem = (itemId) => {
-  checkoutItems.value = checkoutItems.value.filter(item => item._id !== itemId)
-}
+  checkoutItems.value = checkoutItems.value.filter(
+    (item) => item._id !== itemId
+  );
+};
 
 const validateForm = () => {
-  errors.value = {}
-  const validation = validateShippingAddress(shippingAddress.value)
+  errors.value = {};
+  const validation = validateShippingAddress(shippingAddress.value);
 
   if (!validation.valid) {
-    validation.errors.forEach(err => {
-      const field = err.split(' ')[0].toLowerCase()
-      errors.value[field] = err
-    })
-    return false
+    validation.errors.forEach((err) => {
+      const field = err.split(" ")[0].toLowerCase();
+      errors.value[field] = err;
+    });
+    return false;
   }
 
   if (!selectedPaymentMethod.value) {
-    error.value = 'Please select a payment method'
-    return false
+    error.value = "Please select a payment method";
+    return false;
   }
 
-  return true
-}
+  return true;
+};
 
 const placeOrder = async () => {
   try {
-    error.value = null
-    success.value = null
+    error.value = null;
+    success.value = null;
 
     if (!validateForm()) {
-      return
+      return;
     }
 
-    isProcessing.value = true
+    isProcessing.value = true;
 
     // Create order payload
     const orderPayload = createOrderPayload(
       checkoutItems.value,
       shippingAddress.value,
       selectedPaymentMethod.value
-    )
+    );
 
     // Call payment API
-    const response = await createOrderWithPaymentApi(orderPayload)
+    const response = await createOrderWithPaymentApi(orderPayload);
 
     if (response.data.success) {
-      success.value = 'Order created successfully!'
-      
+      success.value = "Order created successfully!";
+
       // Redirect based on payment method
-      if (selectedPaymentMethod.value === 'cod') {
+      if (selectedPaymentMethod.value === "cod") {
         setTimeout(() => {
-          router.push(`/orders/${response.data.orderId}`)
-        }, 2000)
+          router.push(`/orders/${response.data.orderId}`);
+        }, 2000);
       } else if (response.data.paymentUrl) {
         // Redirect to payment gateway
-        window.location.href = response.data.paymentUrl
+        window.location.href = response.data.paymentUrl;
       } else {
         setTimeout(() => {
-          router.push(`/orders/${response.data.orderId}`)
-        }, 2000)
+          router.push(`/orders/${response.data.orderId}`);
+        }, 2000);
       }
 
       // Clear checkout items
-      sessionStorage.removeItem('checkoutItems')
+      sessionStorage.removeItem("checkoutItems");
     } else {
-      error.value = response.data.message || 'Failed to create order'
+      error.value = response.data.message || "Failed to create order";
     }
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || 'An error occurred'
-    console.error('Order error:', err)
+    error.value =
+      err.response?.data?.message || err.message || "An error occurred";
+    console.error("Order error:", err);
   } finally {
-    isProcessing.value = false
+    isProcessing.value = false;
   }
-}
+};
 </script>

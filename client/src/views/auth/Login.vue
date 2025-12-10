@@ -263,6 +263,7 @@ import { loginApi, getOAuthUrls } from "../../service/auth.service";
 import { initAuthStore } from "../../store/index.store";
 import Loading from "../../components/Loading.vue";
 import { useAuthStore } from "../../store/auth.store";
+import { useLoyaltyStore } from "../../store/loyalty.store";
 const schema = yup.object({
   email: yup
     .string()
@@ -283,6 +284,7 @@ const isLoading = ref(false);
 const message = ref("");
 const oauthUrls = ref({});
 const authStore = useAuthStore();
+const loyaltyStore = useLoyaltyStore();
 const loginUser = async (user) => {
   message.value = "";
   isLoading.value = true;
@@ -303,6 +305,18 @@ const loginUser = async (user) => {
     localStorage.setItem("refreshToken", data.newRefreshToken);
     localStorage.setItem("userInfo", JSON.stringify(fullUser));
     authStore.setAuthStore({ user: fullUser, isLoggedIn: true });
+
+    // Check for loyalty rewards (points & tier upgrades) after successful login
+    if (!decoded.isAdmin) {
+      setTimeout(async () => {
+        try {
+          await loyaltyStore.checkPendingRewards();
+        } catch (error) {
+          console.error("Failed to check loyalty rewards:", error);
+        }
+      }, 1000); // Delay to ensure auth is fully set
+    }
+
     router.push(decoded.isAdmin ? "/admin" : "/");
   } catch (error) {
     message.value =

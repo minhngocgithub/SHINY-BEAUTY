@@ -547,7 +547,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useAuthStore } from "../store/auth.store";
 import { useCartStore } from "../store/cart.store";
 import { useRouter } from "vue-router";
@@ -581,6 +581,10 @@ const formattedItems = computed(() => {
         return null;
       }
 
+      const basePrice = isProduct
+        ? data.price || 0
+        : data.bundlePrice || data.price || 0;
+
       return {
         _id: item._id,
         name: data.name || "Unknown Item",
@@ -589,14 +593,14 @@ const formattedItems = computed(() => {
           data.image && Array.isArray(data.image) && data.image.length > 0
             ? data.image[0].url
             : "/placeholder.jpg",
-        displayPrice: item.finalPrice || data.salePrice || data.price || 0,
-        originalPrice: item.originalPrice || data.price || 0,
+        displayPrice: item.finalPrice || data.salePrice || basePrice,
+        originalPrice: item.originalPrice || data.originalPrice || basePrice,
         quantity: item.quantity || 1,
-        stock: data.stock || 999,
+        stock: data.stock || data.countInstock || 999,
         savings: item.savings || 0,
         hasDiscount:
-          (item.originalPrice || data.price || 0) >
-          (item.finalPrice || data.salePrice || data.price || 0),
+          (item.originalPrice || data.originalPrice || basePrice) >
+          (item.finalPrice || data.salePrice || basePrice),
         itemType: item.itemType,
       };
     })
@@ -617,6 +621,55 @@ const allSelected = computed(() => {
     selectedItems.value.size === formattedItems.value.length
   );
 });
+
+watch(
+  selectedItems,
+  (newSelection) => {
+    const selectedIds = Array.from(newSelection);
+
+    sessionStorage.setItem("selectedCartItems", JSON.stringify(selectedIds));
+    const checkoutItems = (cartStore.cartItems || [])
+      .filter((ci) => selectedIds.includes(ci._id))
+      .map((ci) => {
+        const qty = ci.quantity || 1;
+        const isProduct = ci.itemType === "product" || ci.product;
+        const itemData = isProduct ? ci.product : ci.bundle;
+
+        if (!itemData) return null;
+
+        const unitFinalPrice = ci.finalPrice
+          ? ci.finalPrice / qty
+          : itemData.salePrice || itemData.bundlePrice || itemData.price || 0;
+
+        const unitOriginalPrice = ci.originalPrice
+          ? ci.originalPrice / qty
+          : itemData.price || itemData.originalPrice || unitFinalPrice;
+
+        return {
+          _id: ci._id,
+          quantity: qty,
+          itemType: ci.itemType,
+          product: ci.product || null,
+          bundle: ci.bundle || null,
+          finalPrice: unitFinalPrice,
+          originalPrice: unitOriginalPrice,
+          _meta: {
+            name: itemData.name,
+            itemType: ci.itemType,
+          },
+        };
+      })
+      .filter((item) => item !== null);
+
+    sessionStorage.setItem("checkoutItems", JSON.stringify(checkoutItems));
+
+    console.log("[FloatingCart] Selection changed:", {
+      selectedCount: selectedIds.length,
+      checkoutItemsCount: checkoutItems.length,
+    });
+  },
+  { deep: true }
+);
 
 const toggleSelectAll = () => {
   if (allSelected.value) {
@@ -640,8 +693,40 @@ const toggleItemSelection = (itemId) => {
 const toggleCart = async () => {
   if (!isCartOpen.value) {
     await cartStore.fetchCart();
-    selectedItems.value = new Set(formattedItems.value.map((item) => item._id));
-    selectAll.value = true;
+
+    // ✅ THÊM: Restore selection from sessionStorage if exists
+    try {
+      const savedSelection = sessionStorage.getItem("selectedCartItems");
+      if (savedSelection) {
+        const savedIds = JSON.parse(savedSelection);
+        // Only restore if all saved IDs still exist in cart
+        const validIds = savedIds.filter((id) =>
+          formattedItems.value.some((item) => item._id === id)
+        );
+
+        if (validIds.length > 0) {
+          selectedItems.value = new Set(validIds);
+          console.log("[FloatingCart] Restored selection:", validIds.length);
+        } else {
+          // Default: select all
+          selectedItems.value = new Set(
+            formattedItems.value.map((item) => item._id)
+          );
+        }
+      } else {
+        // Default: select all
+        selectedItems.value = new Set(
+          formattedItems.value.map((item) => item._id)
+        );
+      }
+    } catch (err) {
+      console.warn("[FloatingCart] Failed to restore selection, selecting all");
+      selectedItems.value = new Set(
+        formattedItems.value.map((item) => item._id)
+      );
+    }
+
+    selectAll.value = allSelected.value;
   }
   isCartOpen.value = !isCartOpen.value;
 };
@@ -662,17 +747,52 @@ const formatCurrency = (amount) => {
 };
 
 const calculateSelectedSubtotal = () => {
-  return selectedItemsData.value.reduce((sum, item) => {
-    return sum + item.displayPrice * item.quantity;
+  if (
+    selectedCount.value === formattedItems.value.length &&
+    cartStore.cartSummary?.subtotal
+  ) {
+    console.log(
+      "[FloatingCart] Using backend subtotal:",
+      cartStore.cartSummary.subtotal
+    );
+    return cartStore.cartSummary.subtotal;
+  }
+
+  const total = selectedItemsData.value.reduce((sum, item) => {
+    const originalItem = cartStore.cartItems.find((ci) => ci._id === item._id);
+    const lineTotal =
+      originalItem?.finalPrice || item.displayPrice * item.quantity;
+
+    console.log("[FloatingCart] Item:", {
+      name: item.name,
+      quantity: item.quantity,
+      finalPrice: originalItem?.finalPrice,
+      lineTotal: lineTotal,
+    });
+    return sum + lineTotal;
   }, 0);
+
+  console.log("[FloatingCart] Calculated subtotal:", total);
+  return total;
 };
 
 const calculateSelectedDiscount = () => {
+  if (
+    selectedCount.value === formattedItems.value.length &&
+    cartStore.cartSummary?.totalDiscount
+  ) {
+    console.log(
+      "[FloatingCart] Using backend discount:",
+      cartStore.cartSummary.totalDiscount
+    );
+    return cartStore.cartSummary.totalDiscount;
+  }
+
   return selectedItemsData.value.reduce((sum, item) => {
-    if (item.hasDiscount) {
-      return sum + (item.originalPrice - item.displayPrice) * item.quantity;
-    }
-    return sum;
+    const originalItem = cartStore.cartItems.find((ci) => ci._id === item._id);
+    const itemDiscount = originalItem?.discount || 0;
+    console.log("[FloatingCart] Discount for", item.name, ":", itemDiscount);
+    return sum + itemDiscount;
   }, 0);
 };
 
@@ -680,6 +800,7 @@ const pricingDetails = computed(() => {
   if (selectedCount.value === 0) {
     return {
       subtotal: 0,
+      totalDiscount: 0,
       shippingPrice: 0,
       taxPrice: 0,
       totalPrice: 0,
@@ -688,19 +809,32 @@ const pricingDetails = computed(() => {
     };
   }
 
-  const checkoutItems = selectedItemsData.value.map((item) => ({
-    product:
-      item.itemType === "product"
-        ? {
-            _id: item._id,
-            finalPrice: item.displayPrice,
-            salePrice: item.displayPrice,
-            price: item.originalPrice,
-            freeShipping: false, // Would come from product data if available
-          }
-        : null,
-    quantity: item.quantity,
-  }));
+  const checkoutItems = selectedItemsData.value
+    .map((item) => {
+      const originalItem = cartStore.cartItems.find(
+        (ci) => ci._id === item._id
+      );
+      if (!originalItem) return null;
+
+      const unitFinalPrice = originalItem.finalPrice
+        ? originalItem.finalPrice / item.quantity
+        : item.displayPrice;
+
+      const unitOriginalPrice = originalItem.originalPrice
+        ? originalItem.originalPrice / item.quantity
+        : item.originalPrice;
+
+      return {
+        _id: item._id,
+        itemType: originalItem.itemType,
+        product: originalItem.product || null,
+        bundle: originalItem.bundle || null,
+        quantity: item.quantity,
+        finalPrice: unitFinalPrice,
+        originalPrice: unitOriginalPrice,
+      };
+    })
+    .filter((item) => item !== null);
 
   return calculateOrderPricing(
     checkoutItems,
@@ -710,6 +844,10 @@ const pricingDetails = computed(() => {
     {
       userLoyaltyTier: null,
       paymentMethod: "COD",
+      summary:
+        selectedCount.value === formattedItems.value.length
+          ? cartStore.cartSummary
+          : null,
     }
   );
 });
@@ -728,7 +866,6 @@ const shippingSuggestion = computed(() => {
   const subtotal = calculateSelectedSubtotal();
   const totalQty = selected.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Already has free shipping
   if (shippingFee.value === 0) {
     return {
       type: "success",
@@ -737,7 +874,6 @@ const shippingSuggestion = computed(() => {
     };
   }
 
-  // Close to subtotal threshold ($50)
   if (subtotal >= 40 && subtotal < 50) {
     const remaining = 50 - subtotal;
     return {
@@ -748,7 +884,6 @@ const shippingSuggestion = computed(() => {
     };
   }
 
-  // Close to quantity threshold (5 items)
   if (totalQty >= 3 && totalQty < 5) {
     const remaining = 5 - totalQty;
     return {
@@ -758,6 +893,7 @@ const shippingSuggestion = computed(() => {
       progress: (totalQty / 5) * 100,
     };
   }
+
   if (subtotal < 40 && totalQty < 3) {
     return {
       type: "neutral",
@@ -819,10 +955,20 @@ const executeRemoval = async () => {
     if (confirmAction.value === "clear") {
       clearLoading.value = true;
       await cartStore.clearCart();
+      selectedItems.value.clear();
+
+      // ✅ THÊM: Clear sessionStorage
+      sessionStorage.removeItem("selectedCartItems");
+      sessionStorage.removeItem("checkoutItems");
+      sessionStorage.removeItem("checkoutState");
     } else if (confirmAction.value === "remove") {
       removeLoading.value = true;
       await cartStore.removeItem(itemToRemove.value);
+
+      // ✅ THÊM: Remove from selection
+      selectedItems.value.delete(itemToRemove.value);
     }
+
     showConfirmModal.value = false;
     itemToRemove.value = null;
     confirmAction.value = null;
@@ -835,18 +981,107 @@ const executeRemoval = async () => {
   }
 };
 
+// ✅ SỬA: goToCheckout - Add validation
 const goToCheckout = () => {
-  closeCart();
-  router.push("/checkout");
+  try {
+    if (selectedCount.value === 0) {
+      alert("Please select at least one item to checkout");
+      return;
+    }
+
+    const selectedIds = Array.from(selectedItems.value || []);
+
+    const checkoutItems = (cartStore.cartItems || [])
+      .filter((ci) => selectedIds.includes(ci._id))
+      .map((ci) => {
+        const qty = ci.quantity || 1;
+        const isProduct = ci.itemType === "product" || ci.product;
+        const itemData = isProduct ? ci.product : ci.bundle;
+
+        if (!itemData) {
+          console.warn("[FloatingCart] Missing item data:", ci);
+          return null;
+        }
+
+        const unitFinalPrice = ci.finalPrice
+          ? ci.finalPrice / qty
+          : itemData.salePrice || itemData.bundlePrice || itemData.price || 0;
+
+        const unitOriginalPrice = ci.originalPrice
+          ? ci.originalPrice / qty
+          : itemData.price || itemData.originalPrice || unitFinalPrice;
+
+        console.log(`[FloatingCart] Checkout item: ${itemData.name}`, {
+          quantity: qty,
+          unitFinalPrice,
+          unitOriginalPrice,
+        });
+
+        return {
+          _id: ci._id,
+          quantity: qty,
+          itemType: ci.itemType,
+          product: ci.product || null,
+          bundle: ci.bundle || null,
+          finalPrice: unitFinalPrice,
+          originalPrice: unitOriginalPrice,
+          _meta: {
+            name: itemData.name,
+            itemType: ci.itemType,
+            hasDiscount: unitOriginalPrice > unitFinalPrice,
+          },
+        };
+      })
+      .filter((item) => item !== null);
+
+    console.log(
+      "[FloatingCart] Going to checkout with items:",
+      checkoutItems.length
+    );
+
+    sessionStorage.setItem("checkoutItems", JSON.stringify(checkoutItems));
+    sessionStorage.setItem("selectedCartItems", JSON.stringify(selectedIds));
+
+    closeCart();
+    router.push("/checkout");
+  } catch (err) {
+    console.error("[FloatingCart] Failed to build checkoutItems", err);
+    alert("Failed to proceed to checkout. Please try again.");
+  }
 };
 
+// ✅ SỬA: onMounted - Restore selection
 onMounted(() => {
   if (authStore.isLoggedIn) {
     cartStore.fetchCart().then(() => {
-      selectedItems.value = new Set(
-        formattedItems.value.map((item) => item._id)
-      );
-      selectAll.value = true;
+      // ✅ THÊM: Try to restore selection from sessionStorage
+      try {
+        const savedSelection = sessionStorage.getItem("selectedCartItems");
+        if (savedSelection) {
+          const savedIds = JSON.parse(savedSelection);
+          const validIds = savedIds.filter((id) =>
+            formattedItems.value.some((item) => item._id === id)
+          );
+
+          if (validIds.length > 0) {
+            selectedItems.value = new Set(validIds);
+          } else {
+            selectedItems.value = new Set(
+              formattedItems.value.map((item) => item._id)
+            );
+          }
+        } else {
+          selectedItems.value = new Set(
+            formattedItems.value.map((item) => item._id)
+          );
+        }
+      } catch (err) {
+        selectedItems.value = new Set(
+          formattedItems.value.map((item) => item._id)
+        );
+      }
+
+      selectAll.value = allSelected.value;
     });
   }
 });

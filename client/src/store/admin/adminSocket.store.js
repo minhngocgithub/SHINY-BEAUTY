@@ -68,7 +68,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
          */
         connectAdminSocket(token) {
             if (this.socket?.connected) {
-                console.log('[AdminSocket] Already connected')
                 return
             }
 
@@ -77,8 +76,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
                 this.error = null
 
                 const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000'
-
-                console.log('[AdminSocket] Connecting to admin namespace:', socketUrl + '/admin')
 
                 // Create socket connection to /admin namespace
                 this.socket = io(socketUrl + '/admin', {
@@ -109,7 +106,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
 
             // Connection events
             this.socket.on('connect', () => {
-                console.log('✅ [AdminSocket] Connected:', this.socket.id)
                 this.connected = true
                 this.connecting = false
                 this.reconnectAttempts = 0
@@ -127,8 +123,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
                 this.analyticsSubscribed = false
 
                 if (reason === 'io server disconnect') {
-                    // Server disconnected, manual reconnect
-                    console.log('[AdminSocket] Server disconnected, attempting reconnect...')
                     setTimeout(() => this.socket?.connect(), 1000)
                 }
             })
@@ -159,7 +153,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
             })
 
             this.socket.on('reconnect', (attemptNumber) => {
-                console.log(`🔄 [AdminSocket] Reconnected after ${attemptNumber} attempts`)
                 this.reconnectAttempts = 0
             })
 
@@ -169,7 +162,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
                     const adminStore = useAdminStore()
                     adminStore.updateDashboardStats(response.data)
                     this.dashboardSubscribed = true
-                    console.log('📊 [AdminSocket] Dashboard initial data received')
                 }
             })
 
@@ -177,14 +169,12 @@ export const useAdminSocketStore = defineStore('adminSocket', {
                 if (response.success) {
                     const adminStore = useAdminStore()
                     adminStore.updateDashboardStats(response.data)
-                    console.log('🔄 [AdminSocket] Dashboard updated:', response.updateType || 'scheduled')
                 }
             })
 
             this.socket.on('admin:dashboard:unsubscribed', (response) => {
                 if (response.success) {
                     this.dashboardSubscribed = false
-                    console.log('✅ [AdminSocket] Dashboard unsubscribed')
                 }
             })
 
@@ -202,8 +192,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
 
                     // Play sound
                     this.playNotificationSound()
-
-                    console.log('[AdminSocket] New order received:', response.data._id)
                 }
             })
 
@@ -211,7 +199,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
                 if (response.success) {
                     const adminOrderStore = useAdminOrderStore()
                     adminOrderStore.updateOrder(response.data)
-                    console.log('[AdminSocket] Order updated:', response.data._id)
                 }
             })
 
@@ -219,7 +206,6 @@ export const useAdminSocketStore = defineStore('adminSocket', {
                 if (response.success) {
                     const adminOrderStore = useAdminOrderStore()
                     adminOrderStore.updateOrder(response.data)
-                    console.log('[AdminSocket] Order confirmed:', response.data._id)
                 }
             })
 
@@ -231,12 +217,42 @@ export const useAdminSocketStore = defineStore('adminSocket', {
                 }
             })
 
+            this.socket.on('admin:order:overdue', (response) => {
+                if (response.success) {
+                    const adminOrderStore = useAdminOrderStore()
+
+                    // Show notification for overdue order
+                    this.showNotification(
+                        'Order Overdue ⚠️',
+                        `Order #${response.data.orderId.toString().slice(-8).toUpperCase()} is ${response.data.daysOverdue} day(s) overdue`,
+                        'order',
+                        { orderId: response.data.orderId }
+                    )
+
+                    // Play sound
+                    this.playNotificationSound()
+
+                    console.log('[AdminSocket] Order overdue:', response.data.orderId, `${response.data.daysOverdue} days`)
+                }
+            })
+
             this.socket.on('admin:orders:pending', (response) => {
                 if (response.success) {
                     const adminOrderStore = useAdminOrderStore()
                     adminOrderStore.pendingOrders = response.data
                     console.log('[AdminSocket] Pending orders:', response.count)
                 }
+            })
+
+            // General notification events (from NotificationService)
+            this.socket.on('notification:new', (notification) => {
+                this.showNotification(
+                    notification.title,
+                    notification.message,
+                    notification.type || 'info',
+                    notification.data
+                )
+                this.playNotificationSound()
             })
 
             // User events

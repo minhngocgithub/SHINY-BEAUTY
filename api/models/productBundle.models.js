@@ -53,7 +53,6 @@ const productBundleSchema = new Schema({
         default: 0
     },
     
-    // Basic info
     category: [{
         type: mongoose.Schema.ObjectId,
         ref: 'Category'

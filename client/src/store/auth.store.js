@@ -10,6 +10,7 @@ export const useAuthStore = defineStore("auth", () => {
     const isLoggedIn = computed(() => state.value.isLoggedIn)
     const user = computed(() => state.value.user)
     const userId = computed(() => state.value.user?._id)
+    const token = computed(() => localStorage.getItem("accessToken"))
 
     const setAuthStore = (data) => {
         state.value = data
@@ -36,6 +37,7 @@ export const useAuthStore = defineStore("auth", () => {
         isLoggedIn,
         user,
         userId,
+        token,
         setAuthStore,
         loadFromStorage,
         logout,

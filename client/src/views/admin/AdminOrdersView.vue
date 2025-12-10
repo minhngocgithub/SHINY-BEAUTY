@@ -1,25 +1,93 @@
 <template>
-  <div class="h-screen overflow-y-auto bg-gray-50 dark:bg-gray-900 p-6">
-    <!-- Header -->
+  <div class="h-screen p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+    <!-- Header with Realtime Indicator -->
     <div class="mb-6">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-        Order Management
-      </h1>
-      <p class="text-gray-600 dark:text-gray-400 mt-1">
-        Manage and track all customer orders
-      </p>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+            Order Management
+          </h1>
+          <p class="mt-1 text-gray-600 dark:text-gray-400">
+            Manage and track all customer orders
+          </p>
+        </div>
+        <!-- Added realtime connection indicator -->
+        <div class="flex items-center gap-3">
+          <div
+            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
+            :class="
+              socketStore.connected
+                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            "
+          >
+            <span
+              class="w-2 h-2 rounded-full"
+              :class="socketStore.connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'"
+            ></span>
+            {{ socketStore.connected ? 'Live' : 'Offline' }}
+          </div>
+          <button
+            @click="fetchOrders"
+            :disabled="loading"
+            class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            <svg
+              class="w-4 h-4"
+              :class="{ 'animate-spin': loading }"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Stats Cards -->
+    <div class="grid grid-cols-2 gap-4 mb-6 md:grid-cols-4 lg:grid-cols-6">
+      <div
+        v-for="stat in orderStats"
+        :key="stat.status"
+        @click="filters.status = stat.status === 'ALL' ? '' : stat.status"
+        class="p-4 transition-shadow bg-white rounded-lg shadow-sm cursor-pointer dark:bg-gray-800 hover:shadow-md"
+        :class="{ 'ring-2 ring-blue-500': (filters.status || 'ALL') === stat.status }"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="flex items-center justify-center w-10 h-10 rounded-lg"
+            :class="stat.bgColor"
+          >
+            <span class="text-lg">{{ stat.icon }}</span>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">
+              {{ stat.count }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ stat.label }}</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Filters & Search -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="p-4 mb-6 bg-white rounded-lg shadow-sm dark:bg-gray-800">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
         <!-- Search -->
         <div class="md:col-span-2">
           <input
             v-model="filters.search"
             type="text"
             placeholder="Search by Order ID, Customer name..."
-            class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg dark:border-gray-600 focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             @input="debouncedSearch"
           />
         </div>
@@ -27,31 +95,27 @@
         <!-- Status Filter -->
         <select
           v-model="filters.status"
-          @change="fetchOrders"
-          class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          class="px-4 py-2 border border-gray-300 rounded-lg dark:border-gray-600 focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
         >
           <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="preparing">Preparing</option>
-          <option value="shipped">Shipped</option>
-          <option value="out_for_delivery">Out for Delivery</option>
-          <option value="delivered">Delivered</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="returned">Returned</option>
+          <option value="PENDING">Pending</option>
+          <option value="CONFIRMED">Confirmed</option>
+          <option value="PREPARING">Preparing</option>
+          <option value="IN_TRANSIT">In Transit</option>
+          <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+          <option value="DELIVERED">Delivered</option>
+          <option value="CANCELLED">Cancelled</option>
         </select>
 
         <!-- Payment Status Filter -->
         <select
           v-model="filters.paymentStatus"
-          @change="fetchOrders"
-          class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          class="px-4 py-2 border border-gray-300 rounded-lg dark:border-gray-600 focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
         >
           <option value="">All Payments</option>
           <option value="pending">Payment Pending</option>
           <option value="paid">Paid</option>
           <option value="failed">Failed</option>
-          <option value="refunded">Refunded</option>
         </select>
       </div>
 
@@ -60,24 +124,22 @@
         <input
           v-model="filters.startDate"
           type="date"
-          @change="fetchOrders"
-          class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+          class="px-4 py-2 border border-gray-300 rounded-lg dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
         <input
           v-model="filters.endDate"
           type="date"
-          @change="fetchOrders"
-          class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+          class="px-4 py-2 border border-gray-300 rounded-lg dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
         <button
           @click="resetFilters"
-          class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+          class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
         >
           Reset Filters
         </button>
         <button
           @click="exportOrders"
-          class="ml-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+          class="flex items-center gap-2 px-4 py-2 ml-auto text-white bg-green-600 rounded-lg hover:bg-green-700"
         >
           <svg
             class="w-5 h-5"
@@ -98,16 +160,14 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex justify-center items-center py-12">
-      <div
-        class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500"
-      ></div>
+    <div v-if="loading" class="flex items-center justify-center py-12">
+      <Loading />
     </div>
 
     <!-- Error State -->
     <div
       v-else-if="error"
-      class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded"
+      class="px-4 py-3 text-red-700 bg-red-100 border border-red-400 rounded"
     >
       <strong class="font-bold">Error!</strong>
       <span class="block sm:inline"> {{ error }}</span>
@@ -116,44 +176,44 @@
     <!-- Orders Table -->
     <div
       v-else
-      class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden"
+      class="overflow-hidden bg-white rounded-lg shadow-sm dark:bg-gray-800"
     >
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-gray-50 dark:bg-gray-700">
             <tr>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300"
               >
                 Order ID
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300"
               >
                 Customer
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300"
               >
                 Date
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300"
               >
                 Total
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300"
               >
                 Payment
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300"
               >
                 Status
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                class="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-300"
               >
                 Actions
               </th>
@@ -163,10 +223,14 @@
             <tr
               v-for="order in orders"
               :key="order._id"
-              class="hover:bg-gray-50 dark:hover:bg-gray-700"
+              class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
+              :class="{ 'bg-blue-50 dark:bg-blue-900/20': highlightedOrderId === order._id }"
             >
               <td
-                class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white"
+                class="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap dark:text-white"
+                :class="
+                  order.status === 'CANCELLED' ? 'line-through opacity-60' : ''
+                "
               >
                 {{ order.orderNumber || order._id }}
               </td>
@@ -179,45 +243,51 @@
                 </div>
               </td>
               <td
-                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
+                class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400"
               >
                 {{ formatDate(order.createdAt) }}
               </td>
               <td
-                class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white"
+                class="px-6 py-4 text-sm font-semibold text-gray-900 whitespace-nowrap dark:text-white"
               >
                 ${{ order.totalPrice?.toFixed(2) || "0.00" }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <span :class="getPaymentStatusClass(order.paymentInfo?.status)">
-                  {{ formatPaymentStatus(order.paymentInfo?.status) }}
+                <span
+                  :class="
+                    getPaymentStatusClass(order.isPaid, order.paymentResult)
+                  "
+                >
+                  {{ formatPaymentStatus(order.isPaid, order.paymentResult) }}
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <span :class="getStatusClass(order.orderStatus)">
-                  {{ formatStatus(order.orderStatus) }}
+                <span :class="getStatusClass(order.status)">
+                  {{ formatStatus(order.status) }}
                 </span>
               </td>
               <td
-                class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2"
+                class="px-6 py-4 space-x-2 text-sm font-medium whitespace-nowrap"
               >
                 <button
                   @click="viewOrderDetail(order)"
-                  class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                  class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-900/30 transition-colors duration-200"
                 >
                   View
                 </button>
+
                 <button
-                  v-if="order.orderStatus === 'pending'"
+                  v-if="order.status === 'PENDING'"
                   @click="confirmOrder(order._id)"
-                  class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                  class="px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 hover:border-green-300 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30 transition-colors duration-200"
                 >
                   Confirm
                 </button>
+
                 <button
-                  v-if="['pending', 'confirmed'].includes(order.orderStatus)"
+                  v-if="['PENDING', 'CONFIRMED'].includes(order.status)"
                   @click="cancelOrder(order._id)"
-                  class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                  class="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30 transition-colors duration-200"
                 >
                   Cancel
                 </button>
@@ -228,9 +298,9 @@
       </div>
 
       <!-- Empty State -->
-      <div v-if="orders.length === 0" class="text-center py-12">
+      <div v-if="orders.length === 0" class="py-12 text-center">
         <svg
-          class="mx-auto h-12 w-12 text-gray-400"
+          class="w-12 h-12 mx-auto text-gray-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -253,20 +323,20 @@
       <!-- Pagination -->
       <div
         v-if="totalPages > 1"
-        class="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-600"
+        class="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 dark:bg-gray-700 dark:border-gray-600"
       >
-        <div class="flex-1 flex justify-between sm:hidden">
+        <div class="flex justify-between flex-1 sm:hidden">
           <button
             @click="changePage(currentPage - 1)"
             :disabled="currentPage === 1"
-            class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             Previous
           </button>
           <button
             @click="changePage(currentPage + 1)"
             :disabled="currentPage === totalPages"
-            class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            class="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             Next
           </button>
@@ -287,12 +357,12 @@
           </div>
           <div>
             <nav
-              class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+              class="relative z-0 inline-flex -space-x-px rounded-md shadow-sm"
             >
               <button
                 @click="changePage(currentPage - 1)"
                 :disabled="currentPage === 1"
-                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
               >
                 Previous
               </button>
@@ -312,7 +382,7 @@
               <button
                 @click="changePage(currentPage + 1)"
                 :disabled="currentPage === totalPages"
-                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
               >
                 Next
               </button>
@@ -333,103 +403,72 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { getAllOrdersApi } from "../../service/order.service";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { storeToRefs } from "pinia";
+import { useAdminOrderStore } from "../../store/admin/adminOrder.store";
+import { useAdminSocketStore } from "../../store/admin/adminSocket.store";
+import { useAdminStore } from "../../store/admin/admin.store";
 import {
   confirmOrderApi,
   adminCancelOrderApi,
 } from "../../service/admin.service";
 import OrderDetailModal from "../../components/admin/orders/OrderDetailModal.vue";
+import Loading from "../../components/Loading.vue";
 
-// Reactive state
-const orders = ref([]);
-const loading = ref(false);
-const error = ref(null);
-const currentPage = ref(1);
-const totalPages = ref(1);
-const totalOrders = ref(0);
-const filters = ref({
-  search: "",
-  status: "",
-  paymentStatus: "",
-  startDate: "",
-  endDate: "",
-});
+// Stores
+const adminOrderStore = useAdminOrderStore();
+const socketStore = useAdminSocketStore();
+const adminStore = useAdminStore();
+
+// Store refs
+const {
+  allOrders: orders,
+  loading,
+  error,
+  currentPage,
+  totalPages,
+  totalOrders,
+  filters,
+} = storeToRefs(adminOrderStore);
+
+// Local state
 const searchTimeout = ref(null);
 const selectedOrder = ref(null);
+const highlightedOrderId = ref(null);
 
-// Computed
-const visiblePages = computed(() => {
-  const pages = [];
-  const maxVisible = 5;
-  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2));
-  let end = Math.min(totalPages.value, start + maxVisible - 1);
-
-  if (end - start < maxVisible - 1) {
-    start = Math.max(1, end - maxVisible + 1);
-  }
-
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
-  return pages;
+const orderStats = computed(() => {
+  const stats = adminStore.dashboardStats.orders;
+  return [
+    { status: 'ALL', label: 'All', count: stats.total || 0, icon: '📋', bgColor: 'bg-gray-100 dark:bg-gray-700' },
+    { status: 'PENDING', label: 'Pending', count: stats.pending || 0, icon: '⏳', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
+    { status: 'CONFIRMED', label: 'Confirmed', count: stats.confirmed || 0, icon: '✅', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
+    { status: 'PREPARING', label: 'Preparing', count: stats.preparing || 0, icon: '📦', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
+    { status: 'IN_TRANSIT', label: 'In Transit', count: stats.in_transit || 0, icon: '🚚', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
+    { status: 'DELIVERED', label: 'Delivered', count: stats.delivered || 0, icon: '🎉', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+  ];
 });
 
 // Methods
 const fetchOrders = async () => {
-  try {
-    loading.value = true;
-    error.value = null;
-
-    const params = {
-      page: currentPage.value,
-      limit: 10,
-    };
-
-    if (filters.value.search) params.search = filters.value.search;
-    if (filters.value.status) params.status = filters.value.status;
-    if (filters.value.paymentStatus)
-      params.paymentStatus = filters.value.paymentStatus;
-    if (filters.value.startDate) params.startDate = filters.value.startDate;
-    if (filters.value.endDate) params.endDate = filters.value.endDate;
-
-    const response = await getAllOrdersApi(params);
-
-    orders.value = response.data.data?.orders || [];
-    totalPages.value = response.data.data?.totalPages || 1;
-    totalOrders.value = response.data.data?.total || 0;
-  } catch (err) {
-    console.error("Failed to fetch orders:", err);
-    error.value = err.response?.data?.message || "Failed to load orders";
-  } finally {
-    loading.value = false;
-  }
+  await adminOrderStore.fetchAllOrders();
 };
 
 const debouncedSearch = () => {
   clearTimeout(searchTimeout.value);
   searchTimeout.value = setTimeout(() => {
-    currentPage.value = 1;
+    adminOrderStore.currentPage = 1;
     fetchOrders();
   }, 500);
 };
 
 const changePage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page;
-    fetchOrders();
+    adminOrderStore.changePage(page);
   }
 };
 
 const resetFilters = () => {
-  filters.value = {
-    search: "",
-    status: "",
-    paymentStatus: "",
-    startDate: "",
-    endDate: "",
-  };
-  currentPage.value = 1;
+  adminOrderStore.clearFilters();
   fetchOrders();
 };
 
@@ -437,12 +476,20 @@ const confirmOrder = async (orderId) => {
   if (!confirm("Confirm this order?")) return;
 
   try {
-    await confirmOrderApi(orderId);
-    // Note: $toast needs to be replaced with toast composable if available
-    console.log("Order confirmed successfully");
+    console.log("🔄 Confirming order:", orderId);
+    const response = await confirmOrderApi(orderId);
+    console.log("✅ Confirm response:", response);
+
+    alert("Order confirmed successfully!");
     await fetchOrders();
   } catch (err) {
-    console.error("Failed to confirm order:", err);
+    console.error("❌ Failed to confirm order:", err);
+    console.error("Error response:", err.response?.data);
+    console.error("Error status:", err.response?.status);
+
+    const errorMessage =
+      err.response?.data?.message || err.message || "Unknown error occurred";
+    alert(`Failed to confirm order: ${errorMessage}`);
   }
 };
 
@@ -451,11 +498,20 @@ const cancelOrder = async (orderId) => {
   if (!reason) return;
 
   try {
-    await adminCancelOrderApi(orderId, { reason });
-    console.log("Order cancelled successfully");
+    console.log("🔄 Cancelling order:", orderId, "Reason:", reason);
+    const response = await adminCancelOrderApi(orderId, { reason });
+    console.log("✅ Cancel response:", response);
+
+    alert("Order cancelled successfully!");
     await fetchOrders();
   } catch (err) {
-    console.error("Failed to cancel order:", err);
+    console.error("❌ Failed to cancel order:", err);
+    console.error("Error response:", err.response?.data);
+    console.error("Error status:", err.response?.status);
+
+    const errorMessage =
+      err.response?.data?.message || err.message || "Unknown error occurred";
+    alert(`Failed to cancel order: ${errorMessage}`);
   }
 };
 
@@ -483,65 +539,129 @@ const formatDate = (date) => {
 
 const formatStatus = (status) => {
   const statusMap = {
+    PENDING: "Pending",
+    CONFIRMED: "Confirmed",
+    PREPARING: "Preparing",
+    IN_TRANSIT: "In Transit",
+    OUT_FOR_DELIVERY: "Out for Delivery",
+    DELIVERED: "Delivered",
+    CANCELLED: "Cancelled",
+    // Support lowercase for backward compatibility
     pending: "Pending",
     confirmed: "Confirmed",
     preparing: "Preparing",
-    shipped: "Shipped",
+    in_transit: "In Transit",
     out_for_delivery: "Out for Delivery",
     delivered: "Delivered",
     cancelled: "Cancelled",
-    returned: "Returned",
   };
   return statusMap[status] || status;
 };
 
-const formatPaymentStatus = (status) => {
-  const statusMap = {
-    pending: "Pending",
-    paid: "Paid",
-    failed: "Failed",
-    refunded: "Refunded",
-  };
-  return statusMap[status] || status;
+const formatPaymentStatus = (isPaid, paymentResult) => {
+  if (isPaid) return "Paid";
+  if (paymentResult?.status === "failed") return "Failed";
+  if (paymentResult?.status === "refunded") return "Refunded";
+  return "Pending";
 };
 
 const getStatusClass = (status) => {
+  // Normalize to uppercase
+  const normalizedStatus = status?.toUpperCase();
+
   const classes = {
-    pending:
+    PENDING:
       "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    confirmed:
+    CONFIRMED:
       "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-    preparing:
+    PREPARING:
       "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-    shipped:
+    IN_TRANSIT:
       "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
-    out_for_delivery:
+    OUT_FOR_DELIVERY:
       "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-    delivered:
+    DELIVERED:
       "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    cancelled:
+    CANCELLED:
       "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    returned:
-      "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
   };
-  return classes[status] || classes.pending;
+  return classes[normalizedStatus] || classes.PENDING;
 };
 
-const getPaymentStatusClass = (status) => {
-  const classes = {
-    pending:
-      "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-    paid: "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    failed:
-      "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-    refunded:
-      "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
-  };
-  return classes[status] || classes.pending;
+const getPaymentStatusClass = (isPaid, paymentResult) => {
+  if (isPaid) {
+    return "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+  }
+  if (paymentResult?.status === "failed") {
+    return "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+  }
+  if (paymentResult?.status === "refunded") {
+    return "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+  }
+  return "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
 };
+
+// Watch for filter changes
+watch(
+  () => filters.value.status,
+  () => {
+    adminOrderStore.currentPage = 1;
+    fetchOrders();
+  }
+);
+
+watch(
+  () => filters.value.paymentStatus,
+  () => {
+    adminOrderStore.currentPage = 1;
+    fetchOrders();
+  }
+);
+
+watch(
+  () => filters.value.startDate,
+  () => {
+    fetchOrders();
+  }
+);
+
+watch(
+  () => filters.value.endDate,
+  () => {
+    fetchOrders();
+  }
+);
+
+watch(
+  () => adminOrderStore.pendingOrders,
+  (newOrders) => {
+    if (newOrders?.length > 0) {
+      // Highlight new order
+      const latestOrder = newOrders[0];
+      highlightedOrderId.value = latestOrder._id;
+      setTimeout(() => {
+        highlightedOrderId.value = null;
+      }, 5000);
+    }
+  },
+  { deep: true }
+);
 
 // Lifecycle
-onMounted(() => {
-  fetchOrders();
-});
+const fetchOrdersOnMount = async () => {
+  await fetchOrders();
+  // Subscribe to realtime order updates
+  if (socketStore.connected) {
+    socketStore.subscribeToOrders();
+  }
+};
+
+const unsubscribeOnUnmount = () => {
+  clearTimeout(searchTimeout.value);
+  // Unsubscribe from orders
+  socketStore.unsubscribeFromOrders();
+};
+
+onMounted(fetchOrdersOnMount);
+onUnmounted(unsubscribeOnUnmount);
 </script>

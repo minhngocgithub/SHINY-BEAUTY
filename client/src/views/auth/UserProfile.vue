@@ -63,8 +63,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, onMounted, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "../../store/auth.store";
 import { useUserStore } from "../../store/user.store";
 import { useOrderStore } from "../../store/order.store";
@@ -78,6 +78,7 @@ import AddShippingAddressModal from "../../components/profile/AddShippingAddress
 import { showErrorAlert } from "../../../utils/sweetAlert";
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const userStore = useUserStore();
 const orderStore = useOrderStore();
@@ -150,6 +151,31 @@ onMounted(async () => {
     globalLoading.value = false;
   }
 });
+
+// Watch for route changes - refresh stats when navigating back to profile
+watch(
+  () => route.fullPath,
+  async (newPath, oldPath) => {
+    // If navigating TO profile page from another page
+    if (
+      newPath.includes("/account/profile") &&
+      oldPath &&
+      !oldPath.includes("/account/profile")
+    ) {
+      console.log("Refreshing profile stats after navigation...");
+      try {
+        // Silently refresh stats, orders, and reviews
+        await Promise.allSettled([
+          userStore.fetchStats(),
+          orderStore.fetchMyOrders(),
+          reviewStore.fetchMyReviews(),
+        ]);
+      } catch (error) {
+        console.error("Failed to refresh profile data:", error);
+      }
+    }
+  }
+);
 </script>
 
 <style scoped>

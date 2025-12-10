@@ -32,7 +32,7 @@
               class="p-3 text-center border border-gray-100 bg-[#FEFEFF] shadow-lg rounded-xl"
             >
               <div class="text-2xl font-bold text-[#C9123F]">
-                {{ userStats?.totalOrders || 0 }}
+                {{ userStore.stats?.totalOrders || 0 }}
               </div>
               <div class="text-xs text-gray-600">Orders</div>
             </div>
@@ -40,7 +40,7 @@
               class="p-3 text-center border border-gray-100 bg-[#FEFEFF] shadow-lg rounded-xl"
             >
               <div class="text-2xl font-bold text-[#C9123F]">
-                {{ userStats?.totalReviews || 0 }}
+                {{ userStore.stats?.totalReviews || 0 }}
               </div>
               <div class="text-xs text-gray-600">Reviews</div>
             </div>
@@ -48,7 +48,7 @@
               class="p-3 text-center border border-gray-100 bg-[#FEFEFF] shadow-lg rounded-xl"
             >
               <div class="text-2xl font-bold text-[#C9123F]">
-                {{ wishlistStore.wishlistCount || 0 }}
+                {{ userStore.stats?.wishlistCount || 0 }}
               </div>
               <div class="text-xs text-gray-600">Wishlist</div>
             </div>
@@ -56,7 +56,7 @@
               class="p-3 text-center border border-gray-100 bg-[#FEFEFF] shadow-lg rounded-xl"
             >
               <div class="text-2xl font-bold text-[#C9123F]">
-                {{ formatCurrency(userStats?.totalSpent || 0) }}
+                {{ formatCurrency(userStore.stats?.totalSpent || 0) }}
               </div>
               <div class="text-xs text-gray-600">Total Spent</div>
             </div>
@@ -140,7 +140,7 @@
 
         <!-- Reviews Tab -->
         <div v-if="activeTab === 'reviews'">
-          <ReviewsTab :reviews="reviewStore.myReviews" />
+          <ReviewsTab />
         </div>
 
         <!-- Addresses Tab -->
@@ -247,7 +247,6 @@ const reviewStore = useReviewStore();
 const activeTab = ref(route.query.tab || "profile");
 const isEditing = ref(false);
 const selectedOrderFilter = ref("all");
-const userStats = ref(null);
 
 const editForm = ref({
   name: "",
@@ -291,6 +290,38 @@ watch(
     }
   }
 );
+
+// Watch activeTab changes to refresh data
+watch(activeTab, async (newTab) => {
+  try {
+    switch (newTab) {
+      case "orders":
+        await orderStore.fetchMyOrders();
+        // Refresh stats in store
+        await userStore.fetchStats();
+        emit("update-stats", userStore.stats);
+        break;
+      case "reviews":
+        await reviewStore.fetchMyReviews();
+        await userStore.fetchStats();
+        emit("update-stats", userStore.stats);
+        break;
+      case "addresses":
+        await userStore.fetchAddresses();
+        break;
+      case "profile":
+        // Force refresh user stats when returning to profile
+        await userStore.fetchStats();
+        emit("update-stats", userStore.stats);
+        break;
+      case "settings":
+        await userStore.fetchNotificationPreferences();
+        break;
+    }
+  } catch (error) {
+    console.error(`Failed to refresh ${newTab} data:`, error);
+  }
+});
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat("en-US", {
@@ -472,15 +503,39 @@ const handleLogout = async () => {
   }
 };
 
-// Load stats
+// Load initial data
 onMounted(async () => {
   loadUserData();
+
+  // Fetch initial data based on active tab
   try {
+    console.log("🔄 Loading user stats...");
     const stats = await userStore.fetchStats();
-    userStats.value = stats;
+    console.log("📊 Stats loaded in ModelProfile:", stats);
+    console.log("📊 userStore.stats value:", userStore.stats);
+    // stats is stored in userStore.stats (reactive) and exposed via `userStats`
     emit("update-stats", stats);
+
+    // Load data for the initial active tab
+    switch (activeTab.value) {
+      case "orders":
+        await orderStore.fetchMyOrders();
+        break;
+      case "reviews":
+        await reviewStore.fetchMyReviews();
+        break;
+      case "addresses":
+        await userStore.fetchAddresses();
+        break;
+      case "settings":
+        await userStore.fetchNotificationPreferences();
+        break;
+      case "wishlist":
+        await wishlistStore.fetchWishlist();
+        break;
+    }
   } catch (error) {
-    console.error("Failed to load stats:", error);
+    console.error("Failed to load initial data:", error);
   }
 });
 </script>

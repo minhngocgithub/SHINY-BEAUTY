@@ -4,6 +4,7 @@ const realtimeService = require('../services/realtime.service')
 const ShippingService = require('../services/shipping.service')
 const OrderTrackingService = require('../services/orderTracking.service')
 const NotificationService = require('../services/notification.service')
+const SaleProgramTrackingService = require('../services/saleProgramTracking.service')
 
 const getAllOrders = async (req, res) => {
   try {
@@ -21,10 +22,18 @@ const getAllOrders = async (req, res) => {
     let filter = {};
 
     // Filter by order status
-    if (status) filter.orderStatus = status;
+    if (status) filter.status = status;
 
     // Filter by payment status
-    if (paymentStatus) filter['paymentInfo.status'] = paymentStatus;
+    if (paymentStatus) {
+      if (paymentStatus === 'paid') {
+        filter.isPaid = true;
+      } else if (paymentStatus === 'pending') {
+        filter.isPaid = false;
+      } else if (paymentStatus === 'failed') {
+        filter['paymentResult.status'] = 'failed';
+      }
+    }
 
     // Filter by user
     if (userId) filter.user = userId;
@@ -276,12 +285,30 @@ const createOrder = async (req, res) => {
 
     const totalPrice = itemsPrice + taxPrice + shippingPrice - totalDiscount
 
-    // Get shipping details for tracking
+    // Get shipping details for tracking and delivery time
     const shippingInfo = ShippingService.calculateShippingFee(
       shippingAddress.city,
       hasFreeShipping,
       false
     )
+
+    // Calculate estimated delivery date
+    const deliveryTimeInfo = ShippingService.calculateDeliveryTime(
+      shippingAddress.city,
+      new Date(),
+      false // isExpress
+    )
+
+    console.log(`[ORDER] Estimated delivery: ${deliveryTimeInfo.estimatedDate.toISOString()} (${deliveryTimeInfo.range})`)
+
+    // Ensure shipping zone is valid for Order schema enum
+    const validZones = ["local", "nearby", "north", "north_far", "central", "south"]
+    const zoneValue = validZones.includes(shippingInfo.zone) ? shippingInfo.zone : "local"
+
+    // ✅ Determine if order is paid based on payment method
+    // COD: Paid when delivered
+    // VNPAY, MOMO, PAYPAL, BANK_TRANSFER: Paid immediately (demo mode)
+    const isPaidImmediately = ['VNPAY', 'MOMO', 'PAYPAL', 'BANK_TRANSFER'].includes(paymentMethod)
 
     const order = new Order({
       user: req.user._id,
@@ -299,8 +326,17 @@ const createOrder = async (req, res) => {
       totalPrice,
       totalDiscount,
       // Add tracking fields
-      shippingZone: shippingInfo.zone,
+      shippingZone: zoneValue,
       shippingDistance: shippingInfo.distance,
+      estimatedDeliveryDate: deliveryTimeInfo.estimatedDate,
+      // ✅ Set payment status
+      isPaid: isPaidImmediately,
+      paidAt: isPaidImmediately ? new Date() : undefined,
+      paymentResult: isPaidImmediately ? {
+        status: 'paid',
+        paidAt: new Date(),
+        transactionId: `${paymentMethod}_${Date.now()}` // Demo transaction ID
+      } : undefined,
     })
 
     // Create initial timeline
@@ -308,8 +344,14 @@ const createOrder = async (req, res) => {
 
     const createdOrder = await order.save()
 
+    // Populate user to get email for sending confirmation
+    await createdOrder.populate('user', 'email fullName')
+
     // Update stock for all items
     await createdOrder.updateStock()
+
+    // Update Sale Program stats (usage counter)
+    await SaleProgramTrackingService.updateProgramStats(createdOrder, 'created')
 
     // Send notifications
     const io = req.app.get("io")
@@ -326,6 +368,15 @@ const createOrder = async (req, res) => {
           message: 'Order created successfully'
         }
       )
+
+      // Notify user order confirmed
+      await NotificationService.notifyOrderConfirmed(io, req.user._id.toString(), createdOrder)
+
+      // Send email confirmation
+      if (createdOrder.user?.email) {
+        const EmailService = require('../services/email.service');
+        await EmailService.sendOrderConfirmation(createdOrder, createdOrder.user.email);
+      }
 
       // Notify admin of new order
       await NotificationService.notifyAdminNewOrder(io, createdOrder)
@@ -462,17 +513,32 @@ const getOrderTracking = async (req, res) => {
     }
 
     // Get destination coordinates (use ShippingService PROVINCES data)
+    // Note: These are province center coordinates, not exact delivery address
     const provinceData = ShippingService.PROVINCES[order.shippingAddress.city];
     let destinationCoords = {
-      lat: 21.0285,
+      lat: 21.0285, // Default: Ba Dinh, Ha Noi (city center)
       lng: 105.8542,
       address: order.shippingAddress.address + ", " + order.shippingAddress.city,
+      isApproximate: true, // Flag to indicate this is not exact GPS
     };
 
     if (provinceData && provinceData.coordinates) {
       destinationCoords = {
         ...provinceData.coordinates,
         address: order.shippingAddress.address + ", " + order.shippingAddress.city,
+        isApproximate: true, // Province center, not exact address
+      };
+    }
+
+    // If order has exact coordinates saved, use those instead
+    if (order.shippingAddress.coordinates &&
+      order.shippingAddress.coordinates.lat &&
+      order.shippingAddress.coordinates.lng) {
+      destinationCoords = {
+        lat: order.shippingAddress.coordinates.lat,
+        lng: order.shippingAddress.coordinates.lng,
+        address: order.shippingAddress.address + ", " + order.shippingAddress.city,
+        isApproximate: false, // Exact GPS coordinates
       };
     }
 

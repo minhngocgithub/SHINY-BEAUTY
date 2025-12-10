@@ -173,3 +173,18 @@ export const createReviewFormData = (reviewData, imageFiles = []) => {
   }
   return formData
 }
+
+// Get testimonials (5-star reviews for homepage)
+export const getTestimonialsApi = async (params = {}) => {
+  return await axiosApiInstance.get(`${BASE_REVIEW_API}/testimonials`, { params })
+}
+
+// ADMIN: Get all reviews with filtering and pagination
+export const getAllReviewsForAdminApi = async (params = {}) => {
+  return await axiosApiInstance.get(`${BASE_REVIEW_API}/admin/all`, { params })
+}
+
+// ADMIN: Bulk moderate reviews
+export const bulkModerateReviewsApi = async (reviewIds, status) => {
+  return await axiosApiInstance.post(`${BASE_REVIEW_API}/admin/bulk-moderate`, { reviewIds, status })
+}

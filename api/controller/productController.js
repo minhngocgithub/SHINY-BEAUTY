@@ -175,17 +175,33 @@ const getProduct = async (req, res) => {
 
 const getNewProduct = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10
-    const products = await Product.find({ isNewProduct: true })
-      .populate(populateCategoryWithParents())
-      .limit(limit)
-      .sort('-createdAt')
-      .lean()
+    const page = Math.max(1, parseInt(req.query.page) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 24))
+    const skip = (page - 1) * limit
+
+    const query = { isNewProduct: true }
+
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .populate(populateCategoryWithParents())
+        .sort('-createdAt')
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Product.countDocuments(query)
+    ])
 
     return res.status(200).json({
       success: true,
-      total: products.length,
-      products
+      products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1
+      }
     })
   } catch (error) {
     console.error('Get New Products Error:', error)
@@ -198,17 +214,33 @@ const getNewProduct = async (req, res) => {
 }
 const getBestSeller = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10
-    const products = await Product.find({ isBestSeller: true })
-      .populate(populateCategoryWithParents())
-      .limit(limit)
-      .sort('-sold')
-      .lean()
+    const page = Math.max(1, parseInt(req.query.page) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 24))
+    const skip = (page - 1) * limit
+
+    const query = { isBestSeller: true }
+
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .populate(populateCategoryWithParents())
+        .sort('-sold')
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Product.countDocuments(query)
+    ])
 
     return res.status(200).json({
       success: true,
-      total: products.length,
-      products
+      products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1
+      }
     })
   } catch (error) {
     console.error('Get Best Sellers Error:', error)
@@ -1470,6 +1502,28 @@ const toggleAvailability = async (req, res) => {
   }
 };
 
+const toggleActiveStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    product.isActive = !product.isActive;
+    await product.save();
+    return res.status(200).json({
+      success: true,
+      message: `Product ${product.isActive ? 'activated' : 'deactivated'} successfully`,
+      isActive: product.isActive,
+      productId: product._id,
+      productName: product.name
+    });
+  } catch (error) {
+    console.error('Toggle Active Status Error:', error);
+    return res.status(500).json({ success: false, message: 'Error toggling active status', error: error.message });
+  }
+};
+
 module.exports = {
   createProduct,
   getProduct,
@@ -1492,5 +1546,6 @@ module.exports = {
   getProductsWithReviewData,
   getProductsByCategory,
   getCategoryFilters,
-  toggleAvailability
+  toggleAvailability,
+  toggleActiveStatus
 }

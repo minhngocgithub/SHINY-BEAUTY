@@ -168,10 +168,10 @@
             <div class="flex gap-2">
               <button
                 v-if="
-                  order.status === 'SHIPPED' ||
-                  order.status === 'PROCESSING' ||
                   order.status === 'CONFIRMED' ||
-                  order.status === 'PAID'
+                  order.status === 'PREPARING' ||
+                  order.status === 'IN_TRANSIT' ||
+                  order.status === 'OUT_FOR_DELIVERY'
                 "
                 @click.stop="$emit('track-order', order._id)"
                 class="px-4 py-2 text-sm font-medium text-white transition-all duration-200 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
@@ -179,9 +179,7 @@
                 Track Order
               </button>
               <button
-                v-if="
-                  order.status === 'PENDING' || order.status === 'CONFIRMED'
-                "
+                v-if="order.status === 'PENDING'"
                 @click.stop="$emit('cancel-order', order._id)"
                 class="px-4 py-2 text-sm font-medium text-red-600 transition-all duration-200 border border-red-200 rounded-lg hover:bg-red-50"
               >
@@ -214,7 +212,9 @@ const orderFilters = [
   { label: "All", value: "all" },
   { label: "Pending", value: "PENDING" },
   { label: "Confirmed", value: "CONFIRMED" },
-  { label: "Paid", value: "PAID" },
+  { label: "Preparing", value: "PREPARING" },
+  { label: "In Transit", value: "IN_TRANSIT" },
+  { label: "Out for Delivery", value: "OUT_FOR_DELIVERY" },
   { label: "Delivered", value: "DELIVERED" },
   { label: "Cancelled", value: "CANCELLED" },
 ];
@@ -271,7 +271,9 @@ const getOrderStatusClass = (status) => {
   const classes = {
     PENDING: "bg-amber-50 text-amber-700 border-amber-200",
     CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
-    PAID: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    PREPARING: "bg-purple-50 text-purple-700 border-purple-200",
+    IN_TRANSIT: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    OUT_FOR_DELIVERY: "bg-cyan-50 text-cyan-700 border-cyan-200",
     DELIVERED: "bg-emerald-50 text-emerald-700 border-emerald-200",
     CANCELLED: "bg-red-50 text-red-700 border-red-200",
   };
@@ -280,11 +282,13 @@ const getOrderStatusClass = (status) => {
 
 const getOrderStatusLabel = (status) => {
   const labels = {
-    PENDING: "Pending",
-    CONFIRMED: "Confirmed",
-    PAID: "Paid",
-    DELIVERED: "Delivered",
-    CANCELLED: "Cancelled",
+    PENDING: "⏳ Pending",
+    CONFIRMED: "✅ Confirmed",
+    PREPARING: "📦 Preparing",
+    IN_TRANSIT: "🚚 In Transit",
+    OUT_FOR_DELIVERY: "🚴 Out for Delivery",
+    DELIVERED: "✨ Delivered",
+    CANCELLED: "❌ Cancelled",
   };
   return labels[status] || status;
 };

@@ -169,10 +169,6 @@ const getTopProducts = asyncHandler(async (req, res) => {
     })
 })
 
-/**
- * Get low stock products
- * GET /api/v1/admin/analytics/low-stock
- */
 const getLowStockProducts = asyncHandler(async (req, res) => {
     const { limit = 10 } = req.query
 
@@ -184,10 +180,6 @@ const getLowStockProducts = asyncHandler(async (req, res) => {
     })
 })
 
-/**
- * Get category statistics
- * GET /api/v1/admin/analytics/categories
- */
 const getCategoryStats = asyncHandler(async (req, res) => {
     const stats = await AnalyticsService.getCategoryStats()
 

@@ -8,7 +8,7 @@
 
     <div class="relative">
       <div
-        v-for="(event, index) in timeline"
+        v-for="(event, index) in displayTimeline"
         :key="index"
         class="flex gap-4 pb-8 last:pb-0"
       >
@@ -24,7 +24,7 @@
             }"
           ></div>
           <div
-            v-if="index < timeline.length - 1"
+            v-if="index < displayTimeline.length - 1"
             class="w-0.5 flex-1 mt-2"
             :class="{
               'bg-gray-900 dark:bg-white': event.completed,
@@ -70,19 +70,23 @@
 import { computed } from "vue";
 
 const props = defineProps({
+  timeline: {
+    type: Array,
+    default: () => [],
+  },
   status: {
-    type: String,
-    required: true,
-  },
-  createdAt: {
-    type: String,
-    required: true,
-  },
-  paidAt: {
     type: String,
     default: null,
   },
-  shippedAt: {
+  createdAt: {
+    type: String,
+    default: null,
+  },
+  isPaid: {
+    type: Boolean,
+    default: false,
+  },
+  paidAt: {
     type: String,
     default: null,
   },
@@ -96,18 +100,36 @@ const props = defineProps({
   },
 });
 
-const timeline = computed(() => {
+// Use timeline from order if available (automation system)
+// Otherwise, build timeline from status (legacy support)
+const displayTimeline = computed(() => {
+  // If order has timeline array from automation system, use it
+  if (props.timeline && props.timeline.length > 0) {
+    return props.timeline.map((event) => ({
+      label: getStatusLabel(event.status),
+      date: event.timestamp,
+      completed: true,
+      description: event.note || getStatusDescription(event.status),
+    }));
+  }
+
+  // Legacy fallback: build timeline from status
+  return buildLegacyTimeline();
+});
+
+const buildLegacyTimeline = () => {
   const events = [
     {
-      label: "Order Placed",
+      label: "⏳ Order Placed",
       date: props.createdAt,
       completed: true,
+      description: "Your order has been received",
     },
   ];
 
-  if (props.status === "cancelled") {
+  if (props.status === "CANCELLED" || props.status === "cancelled") {
     events.push({
-      label: "Order Cancelled",
+      label: "❌ Order Cancelled",
       date: props.cancelledAt,
       completed: true,
       description: "Your order has been cancelled",
@@ -115,43 +137,99 @@ const timeline = computed(() => {
     return events;
   }
 
+  // Confirmed
+  const confirmedStatuses = [
+    "CONFIRMED",
+    "PREPARING",
+    "IN_TRANSIT",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+  ];
   events.push({
-    label: "Order Confirmed",
-    date: props.status !== "pending" ? props.createdAt : null,
-    completed: props.status !== "pending",
+    label: "✅ Order Confirmed",
+    date: confirmedStatuses.includes(props.status) ? props.createdAt : null,
+    completed: confirmedStatuses.includes(props.status),
+    description: "Admin has confirmed your order",
   });
 
+  // Payment (if paid)
+  if (props.isPaid) {
+    events.push({
+      label: "💳 Payment Confirmed",
+      date: props.paidAt,
+      completed: true,
+      description: "Payment has been received",
+    });
+  }
+
+  // Preparing
+  const preparingStatuses = [
+    "PREPARING",
+    "IN_TRANSIT",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+  ];
   events.push({
-    label: "Payment Confirmed",
-    date: props.paidAt,
-    completed: ["paid", "processing", "shipped", "delivered"].includes(
-      props.status
-    ),
+    label: "📦 Preparing Order",
+    date: preparingStatuses.includes(props.status) ? props.paidAt : null,
+    completed: preparingStatuses.includes(props.status),
+    description: "Your order is being prepared for shipping",
   });
 
+  // In Transit
+  const transitStatuses = ["IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"];
   events.push({
-    label: "Processing",
-    date: props.paidAt,
-    completed: ["processing", "shipped", "delivered"].includes(props.status),
-    description: "Your order is being prepared",
-  });
-
-  events.push({
-    label: "Shipped",
-    date: props.shippedAt,
-    completed: ["shipped", "delivered"].includes(props.status),
+    label: "🚚 In Transit",
+    date: transitStatuses.includes(props.status) ? props.paidAt : null,
+    completed: transitStatuses.includes(props.status),
     description: "Your order is on the way",
   });
 
+  // Out for Delivery
+  const deliveryStatuses = ["OUT_FOR_DELIVERY", "DELIVERED"];
   events.push({
-    label: "Delivered",
+    label: "🚴 Out for Delivery",
+    date: deliveryStatuses.includes(props.status) ? props.paidAt : null,
+    completed: deliveryStatuses.includes(props.status),
+    description: "Driver is delivering your order",
+  });
+
+  // Delivered
+  events.push({
+    label: "✨ Delivered",
     date: props.deliveredAt,
-    completed: props.status === "delivered",
-    description: "Order has been delivered",
+    completed: props.status === "DELIVERED" || props.status === "delivered",
+    description: "Order has been delivered successfully",
   });
 
   return events;
-});
+};
+
+const getStatusLabel = (status) => {
+  const labels = {
+    PENDING: "⏳ Order Placed",
+    CONFIRMED: "✅ Order Confirmed",
+    PREPARING: "📦 Preparing Order",
+    IN_TRANSIT: "🚚 In Transit",
+    OUT_FOR_DELIVERY: "🚴 Out for Delivery",
+    DELIVERED: "✨ Delivered",
+    CANCELLED: "❌ Cancelled",
+  };
+  return labels[status] || status;
+};
+
+const getStatusDescription = (status) => {
+  const descriptions = {
+    PENDING: "Your order has been received",
+    CONFIRMED: "Admin has confirmed your order",
+    PREPARING: "Your order is being prepared for shipping",
+    IN_TRANSIT: "Your order is on the way to you",
+    OUT_FOR_DELIVERY: "Driver is delivering your order",
+    DELIVERED: "Order has been delivered successfully",
+    CANCELLED: "Your order has been cancelled",
+  };
+  return descriptions[status] || "";
+};
 
 const formatDate = (date) => {
   if (!date) return null;
