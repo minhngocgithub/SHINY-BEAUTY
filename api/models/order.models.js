@@ -323,6 +323,26 @@ orderSchema.methods.updateStock = async function () {
   }
 }
 
+// Restore stock when order is cancelled
+orderSchema.methods.restoreStock = async function () {
+  const Product = mongoose.model("Product")
+  const ProductBundle = mongoose.model("ProductBundle")
+
+  for (const item of this.orderItems) {
+    if (item.bundle) {
+      // Restore bundle stock
+      await ProductBundle.findByIdAndUpdate(item.bundle, {
+        $inc: { countInStock: item.quantity },
+      })
+    } else {
+      // Restore product stock
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { countInStock: item.quantity },
+      })
+    }
+  }
+}
+
 orderSchema.methods.calculateLoyaltyPoints = async function () {
   try {
     const User = mongoose.model("User")

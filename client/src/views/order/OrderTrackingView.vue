@@ -462,6 +462,72 @@
       </div>
     </div>
 
+    <!-- Support Modal -->
+    <div
+      v-if="showSupportModal"
+      class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm"
+      @click.self="closeSupportModal"
+    >
+      <div class="w-full max-w-md overflow-hidden bg-white shadow-2xl rounded-2xl">
+        <div class="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              💬 Contact Support
+            </h3>
+            <button @click="closeSupportModal" class="text-gray-400 transition-colors hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="p-6">
+          <div class="mb-4">
+            <label class="block mb-2 text-sm font-medium text-gray-700">Issue Type *</label>
+            <select v-model="supportData.type" class="w-full px-4 py-3 text-gray-900 transition-all border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="order_issue">📦 Order Issue</option>
+              <option value="shipping_delay">🚚 Shipping Delay</option>
+              <option value="technical_issue">⚙️ Tracking Issue</option>
+              <option value="other">ℹ️ Other</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 text-sm font-medium text-gray-700">Description *</label>
+            <textarea
+              v-model="supportData.message"
+              rows="4"
+              placeholder="Please describe your issue in detail..."
+              class="w-full px-4 py-3 text-gray-900 placeholder-gray-400 transition-all border border-gray-200 resize-none rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            ></textarea>
+            <p class="mt-1 text-xs text-gray-500">{{ supportData.message.length }}/2000 characters</p>
+          </div>
+
+          <div v-if="supportMessage" class="p-3 mb-4 rounded-lg" :class="supportSuccess ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'">
+            <p class="text-sm">{{ supportMessage }}</p>
+          </div>
+
+          <div class="flex gap-3">
+            <button
+              @click="submitSupport"
+              :disabled="!canSubmitSupport || supportLoading"
+              class="flex-1 py-3 font-semibold text-white transition-all shadow-md bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl hover:from-blue-600 hover:to-indigo-700 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {{ supportLoading ? '⏳ Sending...' : '📤 Send Request' }}
+            </button>
+            <button
+              @click="closeSupportModal"
+              :disabled="supportLoading"
+              class="px-6 py-3 font-semibold text-gray-700 transition-all bg-gray-100 rounded-xl hover:bg-gray-200 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Cancel Order Modal -->
     <div
       v-if="showCancelModal"
@@ -549,6 +615,7 @@ import {
   getOrderTrackingApi,
   cancelOrderApi,
 } from "../../service/order.service";
+import { createFeedbackApi } from "../../service/feedback.service";
 import OrderTrackingMap from "../../components/order/OrderTrackingMap.vue";
 import ShipperInfoCard from "../../components/order/ShipperInfoCard.vue";
 import OrderStatusStepper from "../../components/order/OrderStatusStepper.vue";
@@ -565,6 +632,23 @@ const showCancelModal = ref(false);
 const cancelReason = ref("");
 const cancelling = ref(false);
 let refreshInterval = null;
+
+// Support Modal States
+const showSupportModal = ref(false);
+const supportData = ref({
+  type: 'order_issue',
+  message: ''
+});
+const supportLoading = ref(false);
+const supportMessage = ref('');
+const supportSuccess = ref(false);
+
+const canSubmitSupport = computed(() => {
+  return (
+    supportData.value.message.trim().length >= 10 &&
+    supportData.value.message.length <= 2000
+  );
+});
 
 // Computed property for map data
 const mapData = computed(() => {
@@ -739,6 +823,45 @@ const getDeliveryCountdown = (estimatedDate) => {
   if (days > 0) return `${days} day${days > 1 ? "s" : ""} ${hours}h remaining`;
   if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} remaining`;
   return "Arriving soon";
+};
+
+const closeSupportModal = () => {
+  showSupportModal.value = false;
+  supportData.value = { type: 'order_issue', message: '' };
+  supportMessage.value = '';
+  supportSuccess.value = false;
+};
+
+const submitSupport = async () => {
+  if (!canSubmitSupport.value || supportLoading.value) return;
+
+  try {
+    supportLoading.value = true;
+    supportMessage.value = '';
+
+    const feedbackData = {
+      type: supportData.value.type,
+      message: supportData.value.message,
+      relatedOrder: order.value._id
+    };
+
+    const response = await createFeedbackApi(feedbackData);
+
+    if (response.data.success) {
+      supportSuccess.value = true;
+      supportMessage.value = '✅ Thanks for contact! Our team will get back to you soon.';
+      
+      setTimeout(() => {
+        closeSupportModal();
+      }, 2000);
+    }
+  } catch (err) {
+    console.error('Submit support error:', err);
+    supportSuccess.value = false;
+    supportMessage.value = err.response?.data?.message || 'Failed to submit support request. Please try again.';
+  } finally {
+    supportLoading.value = false;
+  }
 };
 
 onMounted(async () => {

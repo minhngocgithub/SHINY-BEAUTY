@@ -314,7 +314,7 @@ const loginUser = async (user) => {
         } catch (error) {
           console.error("Failed to check loyalty rewards:", error);
         }
-      }, 1000); // Delay to ensure auth is fully set
+      }, 1000);
     }
 
     router.push(decoded.isAdmin ? "/admin" : "/");

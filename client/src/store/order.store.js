@@ -181,7 +181,7 @@ export const useOrderStore = defineStore('orderStore', () => {
             socket.value.disconnect()
         }
 
-        const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+        const socketUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
         socket.value = io(socketUrl, {
             auth: {
                 token: localStorage.getItem('accessToken')

@@ -8,7 +8,18 @@ const validateFeedbackData = (req, res, next) => {
             message: 'Feedback message must be at least 10 characters'
         });
     }
-    const validTypes = ['suggestion', 'bug', 'question', 'other'];
+    const validTypes = [
+        'suggestion',
+        'bug',
+        'question',
+        'order_issue',
+        'payment_problem',
+        'shipping_delay',
+        'product_quality',
+        'technical_issue',
+        'account_issue',
+        'other'
+    ];
     if (type && !validTypes.includes(type)) {
         return res.status(400).json({
             success: false,

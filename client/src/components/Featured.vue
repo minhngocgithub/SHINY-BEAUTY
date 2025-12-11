@@ -458,6 +458,10 @@ const fetchFeaturedProducts = async () => {
 
       if (products.value.length === 0) {
         console.warn("No featured products found");
+      } else {
+        // Emit view event for first product after products are loaded
+        await nextTick();
+        setCurrentProduct(0);
       }
     }
   } catch (error) {
@@ -469,13 +473,7 @@ const fetchFeaturedProducts = async () => {
 
 const setCurrentProduct = (index) => {
   currentIndex.value = index;
-  // Emit socket event for view
   const product = products.value[index];
-  console.log("🔍 [Featured] Setting product:", {
-    productId: product?._id,
-    productName: product?.name,
-    socketConnected: connected.value,
-  });
   if (product && product._id) {
     if (connected.value) {
       console.log("📡 [Featured] Emitting featured:view");
@@ -593,11 +591,13 @@ onBeforeUnmount(() => {
 });
 
 const handleNext = () => {
+  let nextIndex;
   if (currentIndex.value < products.value.length - 1) {
-    currentIndex.value++;
+    nextIndex = currentIndex.value + 1;
   } else {
-    currentIndex.value = 0;
+    nextIndex = 0;
   }
+  setCurrentProduct(nextIndex);
 };
 
 // Auto-rotate products

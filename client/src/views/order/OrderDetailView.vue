@@ -382,31 +382,44 @@
               </div>
             </div>
 
-            <!-- Chat with Admin for Delivered Orders -->
-            <div
-              v-if="isDelivered"
-              class="overflow-hidden bg-white shadow-lg rounded-2xl"
-            >
+            <!-- Contact Support -->
+            <div class="overflow-hidden bg-white shadow-lg rounded-2xl">
               <div class="p-6">
-                <button
-                  @click="openChatSupport"
-                  class="flex items-center justify-center w-full gap-2 py-3 font-semibold text-white transition-all shadow-md bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl hover:from-blue-600 hover:to-indigo-700 hover:shadow-lg hover:scale-105"
+                <div
+                  class="flex items-center justify-between p-4 mb-4 border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl"
                 >
-                  <svg
-                    class="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full"
+                    >
+                      <svg
+                        class="w-5 h-5 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="font-semibold text-gray-900">Need Help?</h3>
+                      <p class="text-sm text-gray-600">
+                        Contact our support team
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    @click="showSupportModal = true"
+                    class="px-4 py-2 text-sm font-medium text-white transition-all bg-blue-600 rounded-lg hover:bg-blue-700 hover:shadow-md"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  💬 Chat with Admin
-                </button>
+                    Contact Support
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -653,6 +666,109 @@
           </div>
         </div>
       </div>
+
+      <!-- Support Modal -->
+      <div
+        v-if="showSupportModal"
+        class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm"
+        @click.self="closeSupportModal"
+      >
+        <div
+          class="w-full max-w-md overflow-hidden bg-white shadow-2xl rounded-2xl"
+        >
+          <div
+            class="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50"
+          >
+            <div class="flex items-center justify-between">
+              <h3
+                class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600"
+              >
+                💬 Contact Support
+              </h3>
+              <button
+                @click="closeSupportModal"
+                class="text-gray-400 transition-colors hover:text-gray-600"
+              >
+                <svg
+                  class="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-6">
+            <div class="mb-4">
+              <label class="block mb-2 text-sm font-medium text-gray-700"
+                >Issue Type *</label
+              >
+              <select
+                v-model="supportData.type"
+                class="w-full px-4 py-3 text-gray-900 transition-all border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="order_issue">📦 Order Issue</option>
+                <option value="payment_problem">💳 Payment Problem</option>
+                <option value="shipping_delay">🚚 Shipping Delay</option>
+                <option value="product_quality">⭐ Product Quality</option>
+                <option value="other">ℹ️ Other</option>
+              </select>
+            </div>
+
+            <div class="mb-4">
+              <label class="block mb-2 text-sm font-medium text-gray-700"
+                >Description *</label
+              >
+              <textarea
+                v-model="supportData.message"
+                rows="4"
+                placeholder="Please describe your issue in detail..."
+                class="w-full px-4 py-3 text-gray-900 placeholder-gray-400 transition-all border border-gray-200 resize-none rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              ></textarea>
+              <p class="mt-1 text-xs text-gray-500">
+                {{ supportData.message.length }}/2000 characters
+              </p>
+            </div>
+
+            <div
+              v-if="supportMessage"
+              class="p-3 mb-4 rounded-lg"
+              :class="
+                supportSuccess
+                  ? 'bg-green-50 text-green-700'
+                  : 'bg-red-50 text-red-700'
+              "
+            >
+              <p class="text-sm">{{ supportMessage }}</p>
+            </div>
+
+            <div class="flex gap-3">
+              <button
+                @click="submitSupport"
+                :disabled="!canSubmitSupport || supportLoading"
+                class="flex-1 py-3 font-semibold text-white transition-all shadow-md bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl hover:from-blue-600 hover:to-indigo-700 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ supportLoading ? "⏳ Sending..." : "📤 Send Request" }}
+              </button>
+              <button
+                @click="closeSupportModal"
+                :disabled="supportLoading"
+                class="px-6 py-3 font-semibold text-gray-700 transition-all bg-gray-100 rounded-xl hover:bg-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -665,6 +781,7 @@ import { storeToRefs } from "pinia";
 import OrderTimeline from "../../components/order/OrderTimeline.vue";
 import Loading from "../../components/Loading.vue";
 import { createReviewApi } from "../../service/review.service";
+import { createFeedbackApi } from "../../service/feedback.service";
 
 const route = useRoute();
 const router = useRouter();
@@ -685,6 +802,16 @@ const reviewData = ref({
 const reviewImages = ref([]);
 const imagePreviews = ref([]);
 const reviewLoading = ref(false);
+
+// Support Modal States
+const showSupportModal = ref(false);
+const supportData = ref({
+  type: "order_issue",
+  message: "",
+});
+const supportLoading = ref(false);
+const supportMessage = ref("");
+const supportSuccess = ref(false);
 
 const ratingLabels = {
   1: "😞 Poor",
@@ -709,6 +836,13 @@ const canSubmitReview = computed(() => {
     reviewData.value.rating > 0 &&
     reviewData.value.comment.trim().length >= 10 &&
     reviewData.value.comment.length <= 500
+  );
+});
+
+const canSubmitSupport = computed(() => {
+  return (
+    supportData.value.message.trim().length >= 10 &&
+    supportData.value.message.length <= 2000
   );
 });
 
@@ -945,17 +1079,46 @@ const submitReview = async () => {
   }
 };
 
-const openChatSupport = () => {
-  // For now, redirect to contact support email or open a contact form
-  // You can integrate with live chat widget or support ticket system
-  const subject = `Support Request - Order #${currentOrder.value._id?.slice(
-    -8
-  )}`;
-  const body = `Hi Support Team,\n\nI need assistance with my order.\n\nOrder ID: ${currentOrder.value._id}\nOrder Status: ${currentOrder.value.status}\n\nPlease describe your issue:\n\n\nThank you!`;
+const closeSupportModal = () => {
+  showSupportModal.value = false;
+  supportData.value = { type: "order_issue", message: "" };
+  supportMessage.value = "";
+  supportSuccess.value = false;
+};
 
-  window.location.href = `mailto:support@shinybeauty.vn?subject=${encodeURIComponent(
-    subject
-  )}&body=${encodeURIComponent(body)}`;
+const submitSupport = async () => {
+  if (!canSubmitSupport.value || supportLoading.value) return;
+
+  try {
+    supportLoading.value = true;
+    supportMessage.value = "";
+
+    const feedbackData = {
+      type: supportData.value.type,
+      message: supportData.value.message,
+      relatedOrder: currentOrder.value._id,
+    };
+
+    const response = await createFeedbackApi(feedbackData);
+
+    if (response.data.success) {
+      supportSuccess.value = true;
+      supportMessage.value =
+        "✅ Thanks for contact! Our team will get back to you soon.";
+
+      setTimeout(() => {
+        closeSupportModal();
+      }, 2000);
+    }
+  } catch (err) {
+    console.error("Submit support error:", err);
+    supportSuccess.value = false;
+    supportMessage.value =
+      err.response?.data?.message ||
+      "Failed to submit support request. Please try again.";
+  } finally {
+    supportLoading.value = false;
+  }
 };
 
 const fetchOrder = async () => {

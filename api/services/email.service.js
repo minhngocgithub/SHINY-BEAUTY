@@ -174,6 +174,72 @@ class EmailService {
             userId: user._id.toString(),
         })
     }
+
+    /**
+     * Send feedback reply notification email
+     */
+    static async sendFeedbackReply(recipientEmail, recipientName, feedbackId, replyMessage, adminName) {
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9fafb; padding: 30px 20px; border-radius: 0 0 8px 8px; }
+        .reply-box { background: white; padding: 20px; border-left: 4px solid #667eea; border-radius: 4px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; }
+        .button { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💬 New Reply to Your Support Request</h1>
+        </div>
+        <div class="content">
+            <p>Hi <strong>${recipientName}</strong>,</p>
+            <p>Our support team has responded to your feedback:</p>
+            
+            <div class="reply-box">
+                <p><strong>${adminName}</strong> replied:</p>
+                <p>${replyMessage}</p>
+            </div>
+
+            <p>If you have any additional questions, feel free to contact us again.</p>
+            
+            <div style="text-align: center;">
+                <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/support/feedback/${feedbackId}" class="button">
+                    View Full Conversation
+                </a>
+            </div>
+        </div>
+        <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>&copy; ${new Date().getFullYear()} Shiny Beauty. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+        `.trim()
+
+        await this.queueEmail({
+            to: recipientEmail,
+            subject: `Support Team Reply - Your Feedback`,
+            html,
+            type: "FEEDBACK_REPLY",
+            feedbackId: feedbackId.toString(),
+        })
+
+        logger.info("Feedback reply email queued", {
+            to: recipientEmail,
+            feedbackId,
+            adminName
+        })
+    }
 }
 
 module.exports = EmailService

@@ -468,6 +468,9 @@ const cancelOrder = async (req, res) => {
     order.status = "CANCELLED";
     const updatedOrder = await order.save();
 
+    // Restore stock for cancelled order
+    await updatedOrder.restoreStock();
+
     // Emit Socket.IO event for order cancellation
     realtimeService.emitOrderUpdate(
       updatedOrder._id,
@@ -646,6 +649,9 @@ const userCancelOrder = async (req, res) => {
     }
 
     await order.save();
+
+    // Restore stock for cancelled order
+    await order.restoreStock();
 
     // Send notification
     const io = req.app.get("io");
