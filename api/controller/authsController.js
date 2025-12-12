@@ -777,71 +777,90 @@ const setDefaultAddress = async (req, res) => {
   }
 }
 
-// ============ USER STATS ============
 const getUserStats = async (req, res) => {
   try {
     const userId = req.user._id
-    const orderStats = await Order.aggregate([
+    const user = await User.findById(userId).select('wishlistItems loyaltyProfile createAt createdAt')
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    const allOrdersStats = await Order.aggregate([
       {
         $match: {
           user: userId,
-          status: { $ne: "CANCELLED" }  // Count all orders except cancelled
+          status: { $ne: "CANCELLED" }
         }
       },
       {
         $group: {
           _id: null,
-          totalOrders: { $sum: 1 },
-          totalSpent: { $sum: "$totalPrice" },
-          averageOrderValue: { $avg: "$totalPrice" },
+          allOrders: { $sum: 1 },
+          allSpent: { $sum: "$totalPrice" },
           lastOrderDate: { $max: "$createdAt" }
         }
       }
     ])
-
-    // Get delivered orders for separate tracking
-    const deliveredStats = await Order.aggregate([
-      {
-        $match: {
-          user: userId,
-          status: "DELIVERED"
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          deliveredOrders: { $sum: 1 },
-          deliveredSpent: { $sum: "$totalPrice" }
-        }
-      }
-    ])
-
+    const reviewCount = await Review.countDocuments({ user: userId })
+    
+    const mongoose = require('mongoose')
     const reviewStats = await Review.aggregate([
-      { $match: { user: userId } },
+      { $match: { user: new mongoose.Types.ObjectId(userId) } },
       {
         $group: {
           _id: null,
           totalReviews: { $sum: 1 },
-          averageRating: { $avg: "$rating" }
+          averageRating: { $avg: "$rating" },
+          publishedReviews: {
+            $sum: { $cond: [{ $eq: ["$status", "published"] }, 1, 0] }
+          },
+          pendingReviews: {
+            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
+          }
         }
       }
     ])
 
-    const user = await User.findById(userId).select('wishlistItems')
-    const wishlistCount = user?.wishlistItems?.length || 0
+    const sampleReview = await Review.findOne({ user: userId })
+    if (sampleReview) {
+      console.log('📝 Sample review found:', {
+        _id: sampleReview._id,
+        user: sampleReview.user,
+        product: sampleReview.product,
+        status: sampleReview.status,
+        rating: sampleReview.rating
+      })
+    } else {
+      console.log('⚠️ No reviews found for this user')
+    }
 
+    const wishlistCount = user?.wishlistItems?.length || 0
     const stats = {
-      totalOrders: orderStats[0]?.totalOrders || 0,
-      totalSpent: orderStats[0]?.totalSpent || 0,
-      averageOrderValue: orderStats[0]?.averageOrderValue || 0,
-      deliveredOrders: deliveredStats[0]?.deliveredOrders || 0,
-      deliveredSpent: deliveredStats[0]?.deliveredSpent || 0,
+      // Primary stats from loyalty profile (delivered orders only)
+      totalOrders: user.loyaltyProfile.totalOrders || 0,
+      totalSpent: user.loyaltyProfile.totalSpent || 0,
+      averageOrderValue: user.loyaltyProfile.averageOrderValue || 0,
+
+      // Additional stats
+      allOrders: allOrdersStats[0]?.allOrders || 0,  
+      allSpent: allOrdersStats[0]?.allSpent || 0,
       totalReviews: reviewStats[0]?.totalReviews || 0,
+      publishedReviews: reviewStats[0]?.publishedReviews || 0,
+      pendingReviews: reviewStats[0]?.pendingReviews || 0,
       averageRating: reviewStats[0]?.averageRating || 0,
       wishlistCount,
-      lastOrderDate: orderStats[0]?.lastOrderDate || null,
-      memberSince: req.user.createAt || req.user.createdAt
+      lastOrderDate: allOrdersStats[0]?.lastOrderDate || user.loyaltyProfile.lastPurchaseDate || null,
+      memberSince: user.createAt || user.createdAt,
+
+      // Loyalty info
+      loyaltyPoints: user.loyaltyProfile.points || 0,
+      loyaltyTier: user.loyaltyProfile.tier || 'NEW_CUSTOMER'
     }
+
 
     res.status(200).json({
       success: true,

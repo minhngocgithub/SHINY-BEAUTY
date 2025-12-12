@@ -18,7 +18,6 @@ const orderSchema = new mongoose.Schema(
         product: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Product",
-          // Product is required only when bundle is not present
           required: function () {
             return !this.bundle;
           }
@@ -407,20 +406,46 @@ orderSchema.post("save", async (doc) => {
       const User = mongoose.model("User")
       const Order = mongoose.model("Order")
 
-      // Update loyalty points
+      // Get user to calculate new average
+      const user = await User.findById(doc.user)
+      if (!user) {
+        console.error(`User ${doc.user} not found for loyalty update`)
+        return
+      }
+
+      // Calculate new totals
+      const newTotalOrders = user.loyaltyProfile.totalOrders + 1
+      const newTotalSpent = user.loyaltyProfile.totalSpent + doc.totalPrice
+      const newAverageOrderValue = newTotalSpent / newTotalOrders
+
+      // Update loyalty profile with points, spending, and orders
       await User.findByIdAndUpdate(doc.user, {
         $inc: {
           "loyaltyProfile.points": doc.loyaltyPointsEarned,
+          "loyaltyProfile.totalOrders": 1,
+          "loyaltyProfile.totalSpent": doc.totalPrice,
         },
+        $set: {
+          "loyaltyProfile.lastPurchaseDate": new Date(),
+          "loyaltyProfile.averageOrderValue": newAverageOrderValue,
+        }
       })
+
+      // Recalculate tier
+      const updatedUser = await User.findById(doc.user)
+      const newTier = updatedUser.calculateTier()
+      if (newTier !== updatedUser.loyaltyProfile.tier) {
+        await User.findByIdAndUpdate(doc.user, {
+          $set: { "loyaltyProfile.tier": newTier }
+        })
+        console.log(`User ${doc.user} tier updated: ${updatedUser.loyaltyProfile.tier} → ${newTier}`)
+      }
 
       // Mark as awarded to prevent duplicate points (use updateOne to avoid triggering save hook again)
       await Order.updateOne(
         { _id: doc._id },
         { $set: { loyaltyPointsAwarded: true } }
       )
-
-      console.log(`Awarded ${doc.loyaltyPointsEarned} loyalty points to user ${doc.user} for order ${doc._id}`)
     } catch (error) {
       console.error("Error updating user loyalty profile:", error)
     }

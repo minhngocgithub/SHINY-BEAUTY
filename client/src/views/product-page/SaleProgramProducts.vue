@@ -33,10 +33,7 @@
                   🔥 {{ saleProgram.benefits?.discountPercentage || 0 }}% OFF
                 </div>
 
-                <!-- Timer -->
-                <div v-if="timeRemaining" class="mb-4 text-sm font-semibold">
-                  ⏰ {{ timeRemaining }}
-                </div>
+                <Countdown v-if="timeRemaining" :endDate="saleProgram.endDate" label="Sale ends in:" compact />
 
                 <!-- Title -->
                 <h2 class="mb-3 text-2xl font-black leading-tight">
@@ -355,6 +352,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import Countdown from "../../components/atoms/Countdown.vue";
 import {
   getSaleProgramByIdApi,
   getProductsBySaleProgramApi,
@@ -525,7 +523,6 @@ const fetchData = async () => {
     error.value = null;
 
     const saleProgramId = route.params.id;
-    console.log("🔍 Fetching sale program:", saleProgramId);
 
     const [programRes, productsRes] = await Promise.all([
       getSaleProgramByIdApi(saleProgramId),
@@ -536,9 +533,6 @@ const fetchData = async () => {
         sortOrder: filters.value.sort.includes("desc") ? "desc" : "asc",
       }),
     ]);
-
-    console.log("📊 Sale Program Response:", programRes.data);
-    console.log("📦 Products Response:", productsRes.data);
 
     if (programRes?.data?.success) {
       saleProgram.value = programRes.data.saleProgram;
@@ -553,7 +547,7 @@ const fetchData = async () => {
       totalProducts.value =
         productsRes.data.pagination?.totalProducts || allProducts.value.length;
 
-      console.log("✅ Products loaded:", {
+      console.log("Products loaded:", {
         total: allProducts.value.length,
         totalFromPagination: productsRes.data.pagination?.totalProducts,
         firstProduct: allProducts.value[0]?.name,
@@ -562,7 +556,7 @@ const fetchData = async () => {
     } else {
       allProducts.value = [];
       totalProducts.value = 0;
-      console.warn("⚠️ No products in response");
+      console.warn("No products in response");
     }
     currentPage.value = 1;
   } catch (err) {
@@ -614,7 +608,10 @@ const goToProduct = (product) => {
     },
   });
 };
-
+const formattedTime = computed(() => {
+  const t = timeRemaining.value;
+  return `${t.days} ngày ${t.hours} giờ ${t.minutes} phút ${t.seconds} giây`;
+});
 const scrollToProducts = () => {
   document
     .getElementById("products-section")

@@ -350,8 +350,13 @@ const createOrder = async (req, res) => {
     // Update stock for all items
     await createdOrder.updateStock()
 
-    // Update Sale Program stats (usage counter)
-    await SaleProgramTrackingService.updateProgramStats(createdOrder, 'created')
+    // Update Sale Program stats
+    // If paid immediately (VNPAY, MOMO, etc), count as successful order with revenue
+    // Otherwise just increment usage counter
+    const statsEvent = isPaidImmediately ? 'confirmed' : 'created';
+    await SaleProgramTrackingService.updateProgramStats(createdOrder, statsEvent)
+
+    console.log(`[ORDER] Updated sale program stats with event: ${statsEvent} (isPaid: ${isPaidImmediately})`);
 
     // Send notifications
     const io = req.app.get("io")

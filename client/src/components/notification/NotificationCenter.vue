@@ -13,6 +13,14 @@
       </h3>
       <div class="flex items-center gap-2">
         <button
+          v-if="sortedNotifications.length > 0"
+          @click="handleClearAll"
+          class="px-3 py-1 text-xs font-medium transition-all duration-200 border rounded-lg text-gray-600 border-gray-300 hover:bg-gray-100 hover:text-red-600 hover:border-red-300"
+          title="Clear all notifications"
+        >
+          Clear all
+        </button>
+        <button
           v-if="hasUnread"
           @click="handleMarkAllAsRead"
           class="px-3 py-1 text-xs font-medium transition-all duration-200 border rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50"
@@ -278,6 +286,16 @@ const handleNotificationClick = async (notification) => {
 
 const handleMarkAllAsRead = async () => {
   await notificationStore.markAllAsRead();
+};
+
+const handleClearAll = async () => {
+  if (
+    confirm(
+      "Are you sure you want to clear all notifications? This action cannot be undone."
+    )
+  ) {
+    await notificationStore.clearAllNotifications();
+  }
 };
 
 const handleDelete = async (notificationId) => {

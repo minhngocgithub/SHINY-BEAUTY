@@ -1,6 +1,6 @@
 <template>
   <div 
-    class="p-6 transition-all bg-white border border-gray-200 rounded-lg cursor-pointer category-card hover:shadow-lg hover:border-gray-300 hover:-translate-y-1"
+    class="p-6 transition-all bg-transparent border border-gray-200 rounded-lg cursor-pointer category-card hover:shadow-lg hover:border-gray-300 hover:-translate-y-1"
     @click="$emit('click')"
   >
     <div class="flex flex-col items-center gap-3 text-center">

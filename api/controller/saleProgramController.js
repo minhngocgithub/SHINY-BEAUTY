@@ -7,6 +7,87 @@ const { fixSaleProgramStringFields } = require('../migrations/fixSaleProgramFiel
 const { uploadImageCloudinary, deleteImageFromCloudinary } = require('../utils/upload.service');
 const slugify = require('slugify');
 
+// Helper function to check if products are already in other active sale programs
+const checkProductConflicts = async (productIds, currentProgramId = null) => {
+    if (!productIds || productIds.length === 0) {
+        return { hasConflict: false };
+    }
+
+    const now = new Date();
+
+    // Find active sale programs that contain any of these products
+    const query = {
+        isActive: true,
+        startDate: { $lte: now },
+        $or: [
+            { endDate: { $gte: now } },
+            { endDate: null }
+        ],
+        'conditions.applicableProducts': { $in: productIds }
+    };
+
+    // Exclude current program if updating
+    if (currentProgramId) {
+        query._id = { $ne: currentProgramId };
+    }
+
+    const activeProgramsWithProducts = await SaleProgram.find(query)
+        .populate('conditions.applicableProducts', 'name slug')
+        .select('title slug conditions.applicableProducts');
+
+    if (activeProgramsWithProducts.length > 0) {
+        const conflictingProducts = new Map();
+        const conflictDetails = [];
+
+        activeProgramsWithProducts.forEach(program => {
+            const conflicts = [];
+
+            program.conditions.applicableProducts.forEach(product => {
+                const productIdStr = product._id.toString();
+                if (productIds.some(id => id.toString() === productIdStr)) {
+                    conflicts.push({
+                        id: product._id,
+                        name: product.name,
+                        slug: product.slug
+                    });
+
+                    if (!conflictingProducts.has(productIdStr)) {
+                        conflictingProducts.set(productIdStr, {
+                            id: product._id,
+                            name: product.name,
+                            programs: []
+                        });
+                    }
+
+                    conflictingProducts.get(productIdStr).programs.push({
+                        id: program._id,
+                        title: program.title,
+                        slug: program.slug
+                    });
+                }
+            });
+
+            if (conflicts.length > 0) {
+                conflictDetails.push({
+                    programId: program._id,
+                    programTitle: program.title,
+                    programSlug: program.slug,
+                    conflictingProducts: conflicts
+                });
+            }
+        });
+
+        return {
+            hasConflict: true,
+            conflictingProducts: Array.from(conflictingProducts.values()),
+            conflictDetails,
+            count: conflictingProducts.size
+        };
+    }
+
+    return { hasConflict: false };
+};
+
 const createSaleProgram = async (req, res) => {
     try {
         const {
@@ -52,6 +133,55 @@ const createSaleProgram = async (req, res) => {
         const parsedConditions = typeof conditions === 'string'
             ? JSON.parse(conditions)
             : (conditions || {});
+
+        // Validate categories/brands conflicts BEFORE auto-populating
+        if (autoPopulateProducts && (parsedConditions.categories?.length > 0 || parsedConditions.brands?.length > 0)) {
+            const now = new Date();
+
+            // Find active sale programs with overlapping categories/brands
+            const overlapQuery = {
+                isActive: true,
+                startDate: { $lte: now },
+                $or: [
+                    { endDate: { $gte: now } },
+                    { endDate: null }
+                ]
+            };
+
+            const orConditions = [];
+            if (parsedConditions.categories?.length > 0) {
+                orConditions.push({ 'conditions.categories': { $in: parsedConditions.categories } });
+            }
+            if (parsedConditions.brands?.length > 0) {
+                orConditions.push({ 'conditions.brands': { $in: parsedConditions.brands } });
+            }
+
+            if (orConditions.length > 0) {
+                overlapQuery.$or = [...overlapQuery.$or, ...orConditions];
+            }
+
+            const overlappingPrograms = await SaleProgram.find(overlapQuery)
+                .select('title slug conditions.categories conditions.brands');
+
+            if (overlappingPrograms.length > 0) {
+                const warnings = overlappingPrograms.map(prog => ({
+                    programId: prog._id,
+                    programTitle: prog.title,
+                    overlappingCategories: parsedConditions.categories?.filter(cat =>
+                        prog.conditions.categories?.some(c => c.toString() === cat.toString())
+                    ) || [],
+                    overlappingBrands: parsedConditions.brands?.filter(brand =>
+                        prog.conditions.brands?.includes(brand)
+                    ) || []
+                })).filter(w => w.overlappingCategories.length > 0 || w.overlappingBrands.length > 0);
+
+                if (warnings.length > 0) {
+                    console.log('⚠️ Warning: Categories/Brands overlap with existing programs:', warnings);
+                    // Continue but products will be filtered by isOnSale check below
+                }
+            }
+        }
+
         if (autoPopulateProducts) {
             const productQuery = { countInstock: { $gt: 0 } };
 
@@ -73,9 +203,46 @@ const createSaleProgram = async (req, res) => {
                     $nin: parsedConditions.excludeProducts
                 };
             }
+
+            // CRITICAL: Exclude products already in active sale programs
+            const now = new Date();
+            const activeSalePrograms = await SaleProgram.find({
+                isActive: true,
+                startDate: { $lte: now },
+                $or: [
+                    { endDate: { $gte: now } },
+                    { endDate: null }
+                ]
+            }).select('conditions.applicableProducts');
+
+            const productsInActiveSale = activeSalePrograms
+                .flatMap(program => program.conditions.applicableProducts || [])
+                .map(id => id.toString());
+
+            if (productsInActiveSale.length > 0) {
+                productQuery._id = productQuery._id
+                    ? { ...productQuery._id, $nin: [...(productQuery._id.$nin || []), ...productsInActiveSale] }
+                    : { $nin: productsInActiveSale };
+            }
+
             const applicableProducts = await Product.find(productQuery).select('_id')
             parsedConditions.applicableProducts = applicableProducts.map(p => p._id)
         }
+
+        // Check for product conflicts with other active sale programs
+        if (parsedConditions.applicableProducts && parsedConditions.applicableProducts.length > 0) {
+            const conflicts = await checkProductConflicts(parsedConditions.applicableProducts);
+
+            if (conflicts.hasConflict) {
+                return res.status(409).json({
+                    success: false,
+                    message: `${conflicts.count} product(s) are already in other active sale programs`,
+                    conflicts: conflicts.conflictDetails,
+                    conflictingProducts: conflicts.conflictingProducts
+                });
+            }
+        }
+
         if (autoPopulateBundles) {
             const bundleQuery = { isActive: true };
 
@@ -122,6 +289,63 @@ const createSaleProgram = async (req, res) => {
             { path: 'conditions.categories', select: 'name' },
             { path: 'conditions.applicableBundles', select: 'name bundlePrice' }
         ]);
+
+        // Send notifications and emails to users (async, don't block response)
+        (async () => {
+            try {
+                const User = require('../models/user.models');
+                const NotificationService = require('../services/notification.service');
+                const EmailService = require('../services/email.service');
+                const io = req.app.get('io');
+
+                // Get all active users with notification preferences
+                const users = await User.find({
+                    isActive: true,
+                    'notificationPreferences.email.promotions': { $ne: false }
+                }).select('_id email name notificationPreferences');
+
+                const userIds = users.map(u => u._id.toString());
+
+                // Send in-app notifications
+                if (userIds.length > 0) {
+                    await NotificationService.notifyNewSaleProgram(io, userIds, saleProgram);
+                    console.log(`✅ Sent notifications to ${userIds.length} users for sale program: ${saleProgram.title}`);
+                }
+
+                // Send emails (queued for async processing)
+                const emailTemplate = require('../templates/saleProgramAlert');
+                const emailPromises = users
+                    .filter(user => user.email && user.notificationPreferences?.email?.promotions !== false)
+                    .map(async (user) => {
+                        const discountText = saleProgram.benefits?.discountPercentage
+                            ? `${saleProgram.benefits.discountPercentage}% OFF`
+                            : saleProgram.benefits?.discountAmount
+                                ? `$${saleProgram.benefits.discountAmount} OFF`
+                                : 'Special Discount';
+
+                        const emailHtml = emailTemplate({
+                            saleProgram: saleProgram.toObject(),
+                            user,
+                            discountText
+                        });
+
+                        return EmailService.queueEmail({
+                            to: user.email,
+                            subject: `🎉 ${saleProgram.title} - ${discountText}`,
+                            html: emailHtml,
+                            type: 'SALE_PROGRAM',
+                            saleProgramId: saleProgram._id.toString()
+                        });
+                    });
+
+                await Promise.allSettled(emailPromises);
+                console.log(`✅ Queued ${emailPromises.length} emails for sale program: ${saleProgram.title}`);
+
+            } catch (notificationError) {
+                console.error('❌ Error sending notifications/emails:', notificationError);
+                // Don't throw - notifications are not critical for API response
+            }
+        })();
 
         res.status(201).json({
             success: true,
@@ -577,6 +801,24 @@ const updateSaleProgram = async (req, res) => {
         if (updateData.title && updateData.title !== saleProgram.title) {
             updateData.slug = slugify(updateData.title, { lower: true, strict: true });
         }
+
+        // Check for product conflicts if updating applicableProducts
+        if (updateData.conditions && updateData.conditions.applicableProducts && updateData.conditions.applicableProducts.length > 0) {
+            const conflicts = await checkProductConflicts(
+                updateData.conditions.applicableProducts,
+                id // Exclude current program
+            );
+
+            if (conflicts.hasConflict) {
+                return res.status(409).json({
+                    success: false,
+                    message: `${conflicts.count} product(s) are already in other active sale programs`,
+                    conflicts: conflicts.conflictDetails,
+                    conflictingProducts: conflicts.conflictingProducts
+                });
+            }
+        }
+
         if (req.file) {
             const uploadResult = await uploadImageCloudinary(req.file, 'sale-programs');
             updateData.bannerImage = uploadResult.url;
@@ -692,8 +934,45 @@ const syncProductsToSaleProgram = async (req, res) => {
             productQuery._id = { $nin: conditions.excludeProducts };
         }
 
+        // CRITICAL: Exclude products already in OTHER active sale programs
+        const now = new Date();
+        const activeSalePrograms = await SaleProgram.find({
+            _id: { $ne: id }, // Exclude current program
+            isActive: true,
+            startDate: { $lte: now },
+            $or: [
+                { endDate: { $gte: now } },
+                { endDate: null }
+            ]
+        }).select('conditions.applicableProducts');
+
+        const productsInOtherActiveSales = activeSalePrograms
+            .flatMap(program => program.conditions.applicableProducts || [])
+            .map(productId => productId.toString());
+
+        if (productsInOtherActiveSales.length > 0) {
+            productQuery._id = productQuery._id
+                ? { ...productQuery._id, $nin: [...(productQuery._id.$nin || []), ...productsInOtherActiveSales] }
+                : { $nin: productsInOtherActiveSales };
+        }
+
         const products = await Product.find(productQuery).select('_id');
         const productIds = products.map(p => p._id);
+
+        // Check for product conflicts with other active sale programs
+        if (productIds.length > 0) {
+            const conflicts = await checkProductConflicts(productIds, id);
+
+            if (conflicts.hasConflict) {
+                return res.status(409).json({
+                    success: false,
+                    message: `${conflicts.count} product(s) are already in other active sale programs`,
+                    conflicts: conflicts.conflictDetails,
+                    conflictingProducts: conflicts.conflictingProducts,
+                    suggestion: 'Remove these products from other sale programs first, or exclude them from this sync'
+                });
+            }
+        }
 
         saleProgram.conditions.applicableProducts = productIds;
         await saleProgram.save();
@@ -781,9 +1060,10 @@ const deleteSaleProgram = async (req, res) => {
             });
         }
 
-        saleProgram.status = 'expired';
-        saleProgram.isActive = false;
-        await saleProgram.save();
+        // Actually delete from database (hard delete)
+        await SaleProgram.findByIdAndDelete(id);
+
+        console.log(`✅ Sale program deleted: ${saleProgram.title} (${id})`);
 
         res.status(200).json({
             success: true,
@@ -794,7 +1074,8 @@ const deleteSaleProgram = async (req, res) => {
         console.error('Delete sale program error:', error)
         res.status(500).json({
             success: false,
-            message: 'Server error'
+            message: 'Server error',
+            error: error.message
         });
     }
 }

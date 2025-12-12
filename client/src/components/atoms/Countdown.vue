@@ -91,7 +91,7 @@ onUnmounted(() => {
     align-items: baseline;
     gap: 0.125rem;
     padding: 0.25rem 0.5rem;
-    background-color: #ffff;
+    background-color: transparent;
     border-radius: 0.25rem;
     border-width: 1px;
     border-style: solid;

@@ -12,7 +12,7 @@
                 class="object-contain w-auto p-2 rounded-lg shadow-sm h-"
                 style="max-width: 140px"
               />
-              <span>Beauty Comestic</span>
+               <span class="text-xl font-bold tracking-[0.3em] text-gray-700 uppercase relative overflow-hidden brand-shine font-playfair">Shiny Beauty</span>
             </div>
           </div>
 
@@ -571,7 +571,16 @@ const fetchCategories = async () => {
     loading.value = true;
     const response = await getRootCategoriesWithChildrenApi();
     if (response.data.success) {
-      categories.value = response.data.data;
+      // Filter out inactive categories and their children
+      const filterActive = (cats) => {
+        return cats
+          .filter(cat => cat.isActive !== false)
+          .map(cat => ({
+            ...cat,
+            children: cat.children ? filterActive(cat.children) : []
+          }));
+      };
+      categories.value = filterActive(response.data.data);
     }
   } catch (error) {
     console.error("Error fetching categories:", error);
@@ -690,5 +699,20 @@ nav {
     opacity: 1;
     max-height: 500px;
   }
+}
+.brand-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 </style>

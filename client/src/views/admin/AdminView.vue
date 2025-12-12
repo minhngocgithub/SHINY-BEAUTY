@@ -35,7 +35,7 @@
       <KPISection :stats="stats" />
       <ChartsSection :stats="stats" />
       <OrdersSection :stats="stats" />
-      <ActionsSection />
+      <ActionsSection :stats="stats" />
     </div>
   </div>
 </template>
@@ -81,6 +81,7 @@ const stats = ref({
   lowStockProducts: [],
   topCustomers: [],
   ordersByStatus: [],
+  productViews: null, // Product views tracking (not implemented yet)
 });
 const refreshInterval = ref(null);
 
@@ -117,17 +118,21 @@ const formatTrend = (value) => {
 };
 
 const formatStatus = (status) => {
+  if (!status) return "Unknown";
+  
+  const statusLower = status.toLowerCase();
   const statusMap = {
     pending: "Pending",
     confirmed: "Confirmed",
     preparing: "Preparing",
+    in_transit: "In Transit",
     shipped: "Shipped",
     out_for_delivery: "Out for Delivery",
     delivered: "Completed",
     cancelled: "Cancelled",
     returned: "Returned",
   };
-  return statusMap[status] || status;
+  return statusMap[statusLower] || status;
 };
 
 const fetchData = async (silent = false, useCache = true) => {
@@ -186,13 +191,12 @@ const fetchData = async (silent = false, useCache = true) => {
     );
 
     // === TOP PRODUCTS ===
+    const topProductsList = productResponse?.data?.topProducts || [];
     const maxSold = Math.max(
-      ...(productResponse?.data?.topProducts || []).map(
-        (p) => p.totalSold || 0
-      ),
+      ...topProductsList.map((p) => p.sold || 0),
       1
     );
-    stats.value.topProducts = (productResponse?.data?.topProducts || [])
+    stats.value.topProducts = topProductsList
       .slice(0, 5)
       .map((product, index) => {
         const colors = [
@@ -205,15 +209,18 @@ const fetchData = async (silent = false, useCache = true) => {
         return {
           id: product._id || index,
           name: product.name || "Unknown Product",
-          percentage: Math.min(100, (product.totalSold / maxSold) * 100 || 0),
-          totalSold: product.totalSold || 0,
-          revenue: product.totalRevenue || 0,
+          percentage: Math.min(100, ((product.sold || 0) / maxSold) * 100),
+          totalSold: product.sold || 0,
+          revenue: product.revenue || 0,
           color: colors[index % colors.length],
         };
       });
 
     // === RECENT ORDERS ===
-    stats.value.recentOrders = (ordersResponse.data?.data?.orders || []).map(
+    // Use pending orders for recent orders display (showing latest orders)
+    const recentOrdersList = ordersResponse.data?.orders || ordersResponse.orders || [];
+    
+    stats.value.recentOrders = recentOrdersList.map(
       (order) => ({
         id: order.orderNumber || order._id,
         customer: order.user?.name || "Unknown Customer",
@@ -223,12 +230,21 @@ const fetchData = async (silent = false, useCache = true) => {
           year: "2-digit",
         }),
         price: `$${order.totalPrice?.toFixed(2) || "0.00"}`,
-        status: formatStatus(order.orderStatus),
+        status: formatStatus(order.status),
+        productImage: order.orderItems?.[0]?.image || '/placeholder.png',
       })
     );
 
     // === PENDING ORDERS SUMMARY ===
-    stats.value.pendingOrders = (ordersResponse.data?.data?.orders || [])
+    // ordersResponse is already response.data from getPendingOrdersApi
+    const pendingOrdersList = ordersResponse.data?.orders || 
+                              ordersResponse.orders || 
+                              [];
+    
+    console.log('[AdminView] Pending orders response:', ordersResponse);
+    console.log('[AdminView] Pending orders list:', pendingOrdersList);
+    
+    stats.value.pendingOrders = pendingOrdersList
       .slice(0, 3)
       .map((order) => ({
         id: order.orderNumber || order._id,
@@ -238,31 +254,33 @@ const fetchData = async (silent = false, useCache = true) => {
       }));
 
     // === REVENUE TRENDS (for charts) ===
-    stats.value.revenueTrends = (revenueResponse?.data?.trends || []).map(
-      (trend) => ({
-        date: new Date(trend.date).toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-        }),
-        revenue: trend.revenue || 0,
-        orders: trend.orderCount || 0,
-      })
-    );
+    const revenueData = revenueResponse?.data?.data || revenueResponse?.data || [];
+    stats.value.revenueTrends = revenueData.map((trend) => ({
+      date: new Date(trend.date).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+      }),
+      revenue: trend.revenue || 0,
+      orders: trend.sales || trend.orderCount || 0,
+    }));
 
     // === SALES TRENDS (for charts) ===
-    stats.value.salesTrends = (salesResponse?.data?.dailySales || []).map(
-      (sale) => ({
-        date: new Date(sale.date).toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-        }),
-        sales: sale.totalSales || 0,
-        orders: sale.orderCount || 0,
-      })
-    );
+    const salesData = salesResponse?.data?.data || salesResponse?.data || [];
+    stats.value.salesTrends = salesData.map((sale) => ({
+      date: new Date(sale.date).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+      }),
+      sales: sale.sales || sale.totalSales || 0,
+      orders: sale.sales || sale.orderCount || 0,
+    }));
 
     // === LOW STOCK PRODUCTS ===
-    stats.value.lowStockProducts = (inventoryResponse?.data?.lowStock || [])
+    const lowStockList = inventoryResponse?.data?.lowStock || 
+                         inventoryResponse?.data?.data?.lowStock || 
+                         inventoryResponse?.data?.data || 
+                         [];
+    stats.value.lowStockProducts = lowStockList
       .slice(0, 5)
       .map((product) => ({
         id: product._id,
@@ -272,7 +290,13 @@ const fetchData = async (silent = false, useCache = true) => {
       }));
 
     // === ORDER STATUS BREAKDOWN ===
-    stats.value.ordersByStatus = analytics.orders?.byStatus || [];
+    stats.value.ordersByStatus = (analytics.orders?.byStatus || []).map(
+      (statusData) => ({
+        status: statusData._id?.toLowerCase() || 'unknown',
+        count: statusData.count || 0,
+        revenue: statusData.revenue || 0,
+      })
+    );
 
     // === REALTIME DATA (Today's Overview) ===
     stats.value.todayOrders = analytics.realTime?.todayOrders || 0;

@@ -23,3 +23,7 @@ export const updateNotificationPreferencesApi = async (preferences) => {
 export const deleteNotificationApi = async (notificationId) => {
     return await axiosApiInstance.delete(`/notifications/${notificationId}`);
 };
+
+export const clearAllNotificationsApi = async () => {
+    return await axiosApiInstance.delete('/notifications/clear-all');
+};

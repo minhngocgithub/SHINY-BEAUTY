@@ -51,6 +51,22 @@ const markAllAsRead = asyncHandler(async (req, res) => {
     })
 })
 
+const clearAll = asyncHandler(async (req, res) => {
+    const success = await NotificationService.clearAllNotifications(req.user._id)
+
+    if (success) {
+        return res.status(200).json({
+            success: true,
+            message: 'All notifications cleared'
+        })
+    }
+
+    res.status(500).json({
+        success: false,
+        message: 'Failed to clear notifications'
+    })
+})
+
 const getNotificationPreferences = asyncHandler(async (req, res) => {
     const User = require("../models/user.models")
     const user = await User.findById(req.user._id).select("notificationPreferences")
@@ -121,6 +137,7 @@ module.exports = {
     getNotifications,
     markAsRead,
     markAllAsRead,
+    clearAll,
     getNotificationPreferences,
     updateNotificationPreferences,
 }

@@ -330,9 +330,49 @@ const getAllProducts = async (req, res) => {
     }
 
     if (isOnSale === 'true') {
-      filter.isOnSale = true
+      // Products currently in an ACTIVE sale program
+      const now = new Date();
+      const activeSalePrograms = await require('../models/saleProgram.models').find({
+        isActive: true,
+        startDate: { $lte: now },
+        $or: [
+          { endDate: { $gte: now } },
+          { endDate: null }
+        ]
+      }).select('conditions.applicableProducts');
+
+      const productsInActiveSale = activeSalePrograms
+        .flatMap(program => program.conditions.applicableProducts || [])
+        .map(id => id.toString());
+
+      filter._id = { $in: productsInActiveSale };
     } else if (isOnSale === 'false') {
-      filter.isOnSale = false
+      // Products NOT in any ACTIVE sale program
+      const now = new Date();
+      const activeSalePrograms = await require('../models/saleProgram.models').find({
+        isActive: true,
+        startDate: { $lte: now },
+        $or: [
+          { endDate: { $gte: now } },
+          { endDate: null }
+        ]
+      }).select('conditions.applicableProducts title');
+
+      console.log(`🔍 Found ${activeSalePrograms.length} active sale programs`);
+      activeSalePrograms.forEach(prog => {
+        console.log(`  - ${prog.title}: ${prog.conditions.applicableProducts?.length || 0} products`);
+      });
+
+      const productsInActiveSale = activeSalePrograms
+        .flatMap(program => program.conditions.applicableProducts || [])
+        .map(id => id.toString());
+
+      console.log(`📊 Total products in active sales: ${productsInActiveSale.length}`);
+
+      if (productsInActiveSale.length > 0) {
+        filter._id = { $nin: productsInActiveSale };
+      }
+      // If no active sale programs, all products are not on sale (no filter needed)
     }
 
     if (isNewProduct === 'true') {

@@ -7,7 +7,8 @@ import {
     markAllNotificationsAsReadApi,
     getNotificationPreferencesApi,
     updateNotificationPreferencesApi,
-    deleteNotificationApi
+    deleteNotificationApi,
+    clearAllNotificationsApi
 } from '../service/notification.service';
 
 export const useNotificationStore = defineStore('notification', () => {
@@ -107,6 +108,19 @@ export const useNotificationStore = defineStore('notification', () => {
             notifications.value = notifications.value.filter(n => n.id !== notificationId);
         } catch (err) {
             console.error('Delete notification error:', err);
+        }
+    };
+
+    const clearAllNotifications = async () => {
+        try {
+            const response = await clearAllNotificationsApi();
+
+            if (response.data.success) {
+                notifications.value = [];
+            }
+        } catch (err) {
+            console.error('Clear all notifications error:', err);
+            throw err;
         }
     };
 
@@ -299,6 +313,7 @@ export const useNotificationStore = defineStore('notification', () => {
         markAsRead,
         markAllAsRead,
         deleteNotification,
+        clearAllNotifications,
         fetchPreferences,
         updatePreferences,
         addNotification,

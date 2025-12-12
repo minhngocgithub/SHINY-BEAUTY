@@ -40,6 +40,26 @@
 
       <!-- Search & Filters -->
       <div class="p-4 border-b border-slate-200 dark:border-slate-700">
+        <!-- Info Banner -->
+        <div
+          class="flex items-center gap-2 px-3 py-2 mb-3 text-sm border rounded-lg bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200"
+        >
+          <svg
+            class="w-4 h-4 flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <span class="font-medium"
+            >Showing only products not in any active sale program</span
+          >
+        </div>
+
         <div class="flex gap-3">
           <div class="relative flex-1">
             <div
@@ -63,7 +83,7 @@
               v-model="searchQuery"
               @input="debounceSearch"
               type="text"
-              placeholder="Search products..."
+              placeholder="Search available products..."
               class="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
             />
           </div>
@@ -122,8 +142,9 @@
             <input
               type="checkbox"
               :checked="isSelected(product._id)"
-              class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              @change="toggleProduct(product)"
               @click.stop
+              class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
             />
             <img
               :src="getProductImage(product)"
@@ -143,10 +164,10 @@
                   ${{ product.price }}
                 </span>
                 <span
-                  v-if="product.stock > 0"
+                  v-if="product.countInstock > 0"
                   class="text-xs text-slate-500 dark:text-slate-400"
                 >
-                  {{ product.stock }} in stock
+                  {{ product.countInstock }} in stock
                 </span>
                 <span
                   v-else
@@ -195,9 +216,7 @@
         class="sticky bottom-0 flex items-center justify-between px-6 py-4 border-t bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-slate-200 dark:border-slate-700"
       >
         <div class="text-sm text-slate-600 dark:text-slate-400">
-          {{ selectedCount }} product{{
-            selectedCount !== 1 ? "s" : ""
-          }}
+          {{ selectedCount }} product{{ selectedCount !== 1 ? "s" : "" }}
           selected
         </div>
         <div class="flex gap-3">
@@ -245,6 +264,7 @@ const totalPages = ref(1);
 const limit = ref(20);
 
 const localSelectedIds = ref([...props.selectedProducts]);
+const selectedProductsMap = ref(new Map()); // Store full product objects
 const searchTimeout = ref(null);
 
 const selectedCount = computed(() => localSelectedIds.value.length);
@@ -257,9 +277,25 @@ const toggleProduct = (product) => {
   const index = localSelectedIds.value.indexOf(product._id);
   if (index > -1) {
     localSelectedIds.value.splice(index, 1);
+    selectedProductsMap.value.delete(product._id);
+    console.log(
+      "❌ Deselected:",
+      product.name,
+      "| Remaining:",
+      localSelectedIds.value.length
+    );
   } else {
     localSelectedIds.value.push(product._id);
+    selectedProductsMap.value.set(product._id, product);
+    console.log(
+      "✅ Selected:",
+      product.name,
+      "| Total selected:",
+      localSelectedIds.value.length
+    );
   }
+  console.log("📋 Current selection IDs:", localSelectedIds.value);
+  console.log("📋 Stored products:", selectedProductsMap.value.size);
 };
 
 const debounceSearch = () => {
@@ -285,6 +321,7 @@ const fetchProducts = async () => {
       page: currentPage.value,
       limit: limit.value,
       sort: "name",
+      isOnSale: false, // CRITICAL: Only show products NOT in any ACTIVE sale program
     };
 
     if (searchQuery.value.trim()) {
@@ -295,15 +332,35 @@ const fetchProducts = async () => {
       params.category = categoryFilter.value;
     }
 
+    console.log("🔍 Fetching products with params:", params);
     const response = await getAllProductsApi(params);
+    console.log("📦 Products response (non-sale only):", response.data);
 
     if (response.data.success) {
-      products.value = response.data.products || [];
-      const pagination = response.data.pagination || {};
+      // Match AdminProductsView structure
+      products.value =
+        response.data.data?.products || response.data.products || [];
+      const pagination =
+        response.data.data?.pagination || response.data.pagination || {};
       totalPages.value = pagination.totalPages || 1;
+
+      // Verify all products are not in active sales
+      const productsWithSale = products.value.filter(
+        (p) => p.isOnSale === true
+      );
+      if (productsWithSale.length > 0) {
+        console.warn(
+          "⚠️ WARNING: Some products have isOnSale=true:",
+          productsWithSale.map((p) => p.name)
+        );
+      }
+
+      console.log(
+        `✅ Loaded ${products.value.length} non-sale products (Page ${currentPage.value}/${totalPages.value})`
+      );
     }
   } catch (error) {
-    console.error("Failed to fetch products:", error);
+    console.error("❌ Failed to fetch products:", error);
   } finally {
     loading.value = false;
   }
@@ -312,8 +369,12 @@ const fetchProducts = async () => {
 const fetchCategories = async () => {
   try {
     const response = await getAllCategoriesApi();
+    console.log("📦 Categories response:", response.data);
+
     if (response.data.success) {
-      categories.value = response.data.categories || [];
+      // Match AdminProductsView structure
+      categories.value = response.data.data || response.data.categories || [];
+      console.log("✅ Loaded categories:", categories.value.length);
     }
   } catch (error) {
     console.error("Failed to fetch categories:", error);
@@ -331,8 +392,13 @@ const getProductImage = (product) => {
 };
 
 const confirmSelection = () => {
-  const selectedProductObjects = products.value.filter((p) =>
-    localSelectedIds.value.includes(p._id)
+  const selectedProductObjects = Array.from(selectedProductsMap.value.values());
+  console.log("🎯 Confirming selection:");
+  console.log("  - Selected IDs:", localSelectedIds.value);
+  console.log("  - Selected objects:", selectedProductObjects.length);
+  console.log(
+    "  - Products:",
+    selectedProductObjects.map((p) => p.name)
   );
   emit("select", selectedProductObjects);
 };

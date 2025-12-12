@@ -675,7 +675,11 @@ import Loading from "../../components/Loading.vue";
 import SaleProgramModal from "../../components/admin/saleProgram/SaleProgramModal.vue";
 import ProductsManagementModal from "../../components/admin/saleProgram/ProductsManagementModal.vue";
 import AnalyticsModal from "../../components/admin/saleProgram/AnalyticsModal.vue";
-
+import {
+  showErrorAlert,
+  showSuccessAlert,
+  showConfirmAlert,
+} from "../../../utils/sweetAlert";
 // Store
 const saleProgramStore = useSaleProgramStore();
 
@@ -767,13 +771,24 @@ const handleProgramSaved = () => {
 };
 
 const confirmDelete = async (program) => {
-  if (!confirm(`Are you sure you want to delete "${program.title}"?`)) return;
+  const confirmed = await showConfirmAlert(
+    `Are you sure you want to delete "${program.title}"?`,
+    "This action cannot be undone!",
+    "warning"
+  );
+
+  if (!confirmed) return;
 
   try {
     await saleProgramStore.deleteSaleProgram(program._id);
+    await showSuccessAlert("Sale program deleted successfully!");
+    await fetchSalePrograms(); // Refresh list
   } catch (err) {
     console.error("Error deleting program:", err);
-    alert("Failed to delete program");
+    await showErrorAlert(
+      "Failed to delete program: " +
+        (err.response?.data?.message || err.message)
+    );
   }
 };
 
@@ -799,12 +814,13 @@ const viewAnalytics = (program) => {
 };
 
 const recalculateAllStats = async () => {
-  if (
-    !confirm(
-      "This will recalculate stats for all sale programs from order data. Continue?"
-    )
-  )
-    return;
+  const confirmed = await showConfirmAlert(
+    "This will recalculate stats for all sale programs from order data. Continue?",
+    "This process may take a few seconds",
+    "info"
+  );
+
+  if (!confirmed) return;
 
   try {
     recalculating.value = true;
@@ -813,11 +829,11 @@ const recalculateAllStats = async () => {
     );
     await recalculateAllProgramStatsApi();
 
-    alert("Stats recalculated successfully!");
+    await showSuccessAlert("Stats recalculated successfully!");
     await fetchSalePrograms();
   } catch (err) {
     console.error("Error recalculating stats:", err);
-    alert(
+    await showErrorAlert(
       "Failed to recalculate stats: " +
         (err.response?.data?.message || err.message)
     );
@@ -827,12 +843,13 @@ const recalculateAllStats = async () => {
 };
 
 const fixLegacyData = async () => {
-  if (
-    !confirm(
-      "This will fix stringified benefits/conditions fields in database. This should be run ONCE. Continue?"
-    )
-  )
-    return;
+  const confirmed = await showConfirmAlert(
+    "This will fix stringified benefits/conditions fields in database. This should be run ONCE. Continue?",
+    "This operation will modify database records",
+    "warning"
+  );
+
+  if (!confirmed) return;
 
   try {
     fixingData.value = true;
@@ -842,14 +859,14 @@ const fixLegacyData = async () => {
     const response = await fixLegacyDataFieldsApi();
 
     const result = response.data.data;
-    alert(
+    await showSuccessAlert(
       `Legacy data fixed successfully!\n\nTotal: ${result.total}\nFixed: ${result.fixed}\nErrors: ${result.errors}\nUnchanged: ${result.unchanged}`
     );
 
     await fetchSalePrograms();
   } catch (err) {
     console.error("Error fixing legacy data:", err);
-    alert(
+    await showErrorAlert(
       "Failed to fix legacy data: " +
         (err.response?.data?.message || err.message)
     );

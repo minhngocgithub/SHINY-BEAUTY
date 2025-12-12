@@ -125,8 +125,11 @@ export const useAdminStore = defineStore('admin', {
         updateDashboardStats(data) {
             if (!data) return;
 
+            console.log('[AdminStore] Updating dashboard stats:', data);
+
             // Update overview stats
             if (data.overview) {
+                // Update revenue from overview
                 if (data.overview.revenue) {
                     this.dashboardStats.revenue = {
                         ...this.dashboardStats.revenue,
@@ -134,26 +137,78 @@ export const useAdminStore = defineStore('admin', {
                     };
                 }
 
-                if (data.overview.orders) {
-                    this.dashboardStats.orders = {
-                        ...this.dashboardStats.orders,
-                        ...data.overview.orders
-                    };
+                // Update basic order totals from overview
+                if (data.overview.totalOrders !== undefined) {
+                    this.dashboardStats.orders.total = data.overview.totalOrders;
                 }
 
+                // Update users
                 if (data.overview.users) {
                     this.dashboardStats.users = {
                         ...this.dashboardStats.users,
                         ...data.overview.users
                     };
+                } else if (data.overview.totalUsers !== undefined) {
+                    this.dashboardStats.users.total = data.overview.totalUsers;
                 }
 
+                // Update products
                 if (data.overview.products) {
                     this.dashboardStats.products = {
                         ...this.dashboardStats.products,
                         ...data.overview.products
                     };
+                } else if (data.overview.totalProducts !== undefined) {
+                    this.dashboardStats.products.total = data.overview.totalProducts;
                 }
+            }
+
+            // Update order breakdown by status from data.orders.byStatus
+            if (data.orders && data.orders.byStatus) {
+                console.log('[AdminStore] Processing order breakdown:', data.orders.byStatus);
+                
+                // Reset all status counts
+                this.dashboardStats.orders.pending = 0;
+                this.dashboardStats.orders.confirmed = 0;
+                this.dashboardStats.orders.preparing = 0;
+                this.dashboardStats.orders.in_transit = 0;
+                this.dashboardStats.orders.out_for_delivery = 0;
+                this.dashboardStats.orders.delivered = 0;
+                this.dashboardStats.orders.cancelled = 0;
+
+                // Map status data to store
+                data.orders.byStatus.forEach(statusData => {
+                    const status = statusData._id?.toUpperCase();
+                    const count = statusData.count || 0;
+
+                    console.log(`[AdminStore] Status: ${status}, Count: ${count}`);
+
+                    switch (status) {
+                        case 'PENDING':
+                            this.dashboardStats.orders.pending = count;
+                            break;
+                        case 'CONFIRMED':
+                            this.dashboardStats.orders.confirmed = count;
+                            break;
+                        case 'PREPARING':
+                            this.dashboardStats.orders.preparing = count;
+                            break;
+                        case 'IN_TRANSIT':
+                            this.dashboardStats.orders.in_transit = count;
+                            break;
+                        case 'OUT_FOR_DELIVERY':
+                            this.dashboardStats.orders.out_for_delivery = count;
+                            break;
+                        case 'DELIVERED':
+                            this.dashboardStats.orders.delivered = count;
+                            break;
+                        case 'CANCELLED':
+                            this.dashboardStats.orders.cancelled = count;
+                            break;
+                    }
+                });
+
+                console.log('[AdminStore] Updated orders:', this.dashboardStats.orders);
             }
 
             // Update recent orders
@@ -167,6 +222,23 @@ export const useAdminStore = defineStore('admin', {
                     ...this.alerts,
                     ...data.alerts
                 };
+            }
+
+            // Update realtime stats
+            if (data.realTime) {
+                console.log('[AdminStore] Processing realTime stats:', data.realTime);
+                
+                if (data.realTime.todayOrders !== undefined) {
+                    // Store today's orders somewhere if needed
+                }
+                
+                if (data.realTime.todayRevenue !== undefined) {
+                    this.dashboardStats.revenue.today = data.realTime.todayRevenue;
+                }
+                
+                if (data.realTime.pendingOrders !== undefined) {
+                    this.alerts.pendingOrders = data.realTime.pendingOrders;
+                }
             }
 
             this.lastUpdate = new Date();

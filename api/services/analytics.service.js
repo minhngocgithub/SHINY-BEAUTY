@@ -59,8 +59,8 @@ class AnalyticsService {
                     $group: {
                         _id: null,
                         totalOrders: { $sum: 1 },
-                        totalRevenue: { $sum: "$totalAmount" },
-                        averageOrderValue: { $avg: "$totalAmount" },
+                        totalRevenue: { $sum: "$totalPrice" },
+                        averageOrderValue: { $avg: "$totalPrice" },
                         totalItems: { $sum: { $size: "$orderItems" } }
                     }
                 }
@@ -101,8 +101,8 @@ class AnalyticsService {
                                 $group: {
                                     _id: null,
                                     totalOrders: { $sum: 1 },
-                                    totalRevenue: { $sum: "$totalAmount" },
-                                    averageOrderValue: { $avg: "$totalAmount" },
+                                    totalRevenue: { $sum: "$totalPrice" },
+                                    averageOrderValue: { $avg: "$totalPrice" },
                                     totalItems: { $sum: { $size: "$orderItems" } }
                                 }
                             }
@@ -112,7 +112,7 @@ class AnalyticsService {
                                 $group: {
                                     _id: "$status",
                                     count: { $sum: 1 },
-                                    revenue: { $sum: "$totalAmount" }
+                                    revenue: { $sum: "$totalPrice" }
                                 }
                             },
                             { $sort: { count: -1 } }
@@ -122,7 +122,7 @@ class AnalyticsService {
                                 $group: {
                                     _id: "$paymentMethod",
                                     count: { $sum: 1 },
-                                    revenue: { $sum: "$totalAmount" }
+                                    revenue: { $sum: "$totalPrice" }
                                 }
                             },
                             { $sort: { count: -1 } }
@@ -132,7 +132,7 @@ class AnalyticsService {
                                 $group: {
                                     _id: "$isPaid",
                                     count: { $sum: 1 },
-                                    revenue: { $sum: "$totalAmount" }
+                                    revenue: { $sum: "$totalPrice" }
                                 }
                             }
                         ]
@@ -172,7 +172,7 @@ class AnalyticsService {
                     $group: {
                         _id: "$status",
                         count: { $sum: 1 },
-                        revenue: { $sum: "$totalAmount" }
+                        revenue: { $sum: "$totalPrice" }
                     }
                 },
                 { $sort: { count: -1 } }
@@ -210,8 +210,8 @@ class AnalyticsService {
                             }
                         },
                         sales: { $sum: 1 },
-                        revenue: { $sum: "$totalAmount" },
-                        averageOrderValue: { $avg: "$totalAmount" }
+                        revenue: { $sum: "$totalPrice" },
+                        averageOrderValue: { $avg: "$totalPrice" }
                     }
                 },
                 { $sort: { _id: 1 } }
@@ -340,8 +340,18 @@ class AnalyticsService {
 
             const stats = await Product.aggregate([
                 {
+                    $lookup: {
+                        from: "categories",
+                        localField: "category",
+                        foreignField: "_id",
+                        as: "categoryInfo"
+                    }
+                },
+                { $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true } },
+                {
                     $group: {
                         _id: "$category",
+                        name: { $first: "$categoryInfo.name" },
                         productCount: { $sum: 1 },
                         totalRevenue: { $sum: { $multiply: ["$sold", "$price"] } },
                         totalSold: { $sum: "$sold" },
@@ -582,9 +592,9 @@ class AnalyticsService {
                 Order.countDocuments({ createdAt: { $gte: today } }),
                 Order.aggregate([
                     { $match: { createdAt: { $gte: today } } },
-                    { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+                    { $group: { _id: null, total: { $sum: "$totalPrice" } } }
                 ]),
-                Order.countDocuments({ status: "pending" })
+                Order.countDocuments({ status: "PENDING" })
             ])
 
             return {

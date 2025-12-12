@@ -782,6 +782,7 @@ import OrderTimeline from "../../components/order/OrderTimeline.vue";
 import Loading from "../../components/Loading.vue";
 import { createReviewApi } from "../../service/review.service";
 import { createFeedbackApi } from "../../service/feedback.service";
+import { showSuccessAlert, showErrorAlert } from "../../../utils/sweetAlert";
 
 const route = useRoute();
 const router = useRouter();
@@ -1013,11 +1014,6 @@ const submitReview = async () => {
 
   try {
     reviewLoading.value = true;
-
-    // Debug: Log the reviewItem structure
-    console.log("🔍 Review Item Structure:", reviewItem.value);
-
-    // Try multiple ways to get productId and ensure it's a string
     let productId =
       reviewItem.value.product?._id ||
       reviewItem.value.productId?._id ||
@@ -1031,49 +1027,39 @@ const submitReview = async () => {
       productId = String(productId);
     }
 
-    console.log(
-      "📦 Extracted Product ID:",
-      productId,
-      "Type:",
-      typeof productId
-    );
-
     if (!productId) {
-      console.error("❌ Failed to extract productId from:", reviewItem.value);
-      alert("❌ Product information not found. Please try again.");
+      console.error("Failed to extract productId from:", reviewItem.value);
+      alert("Product information not found. Please try again.");
       return;
     }
 
     const formData = new FormData();
-    formData.append("product", productId); // ✅ Backend expects "product" not "productId"
+    formData.append("product", productId); 
     formData.append("rating", String(reviewData.value.rating));
     formData.append("comment", reviewData.value.comment);
     if (currentOrder.value._id) {
       formData.append("orderId", String(currentOrder.value._id));
     }
-
-    // Debug: Log FormData contents
-    console.log("📤 Sending Review Data:", {
-      product: productId,
-      rating: reviewData.value.rating,
-      comment: reviewData.value.comment,
-      orderId: currentOrder.value._id,
-      imageCount: reviewImages.value.length,
-    });
-
     reviewImages.value.forEach((image) => {
       formData.append("images", image);
     });
 
     const response = await createReviewApi(formData);
-    console.log("✅ Review Response:", response.data);
+    console.log("Review Response:", response.data);
 
-    alert("✅ Review submitted successfully!");
+    await showSuccessAlert(
+      "Thank You! 🎉",
+      "Thanks for your review! Your feedback helps other customers make informed decisions."
+    );
     closeReviewModal();
   } catch (err) {
-    console.error("❌ Submit review error:", err);
-    console.error("❌ Error response:", err.response?.data);
-    alert(err.response?.data?.message || "❌ Failed to submit review");
+    console.error("Submit review error:", err);
+    console.error(" Error response:", err.response?.data);
+    await showErrorAlert(
+      "Review Error",
+      err.response?.data?.message ||
+        "Failed to submit review. Please try again."
+    );
   } finally {
     reviewLoading.value = false;
   }
@@ -1104,7 +1090,7 @@ const submitSupport = async () => {
     if (response.data.success) {
       supportSuccess.value = true;
       supportMessage.value =
-        "✅ Thanks for contact! Our team will get back to you soon.";
+        "Thanks for contact! Our team will get back to you soon.";
 
       setTimeout(() => {
         closeSupportModal();
@@ -1138,10 +1124,7 @@ const canTrackOrder = computed(() => {
 
 onMounted(() => {
   fetchOrder();
-
-  // Connect to socket for real-time updates when order is loaded
   if (route.params.id) {
-    // Wait a bit for order to load, then connect socket
     setTimeout(() => {
       if (currentOrder.value?._id) {
         orderStore.connectOrderSocket(currentOrder.value._id);
@@ -1152,7 +1135,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  // Disconnect socket when leaving page
   orderStore.disconnectOrderSocket();
 });
 </script>

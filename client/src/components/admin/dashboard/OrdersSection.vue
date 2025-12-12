@@ -16,7 +16,7 @@
           <span class="text-red-600 dark:text-red-400">Last Week</span>
         </div>
       </div>
-      <ProductViewsChart />
+      <ProductViewsChart :chartData="stats.productViews" />
     </div>
   </div>
 </template>

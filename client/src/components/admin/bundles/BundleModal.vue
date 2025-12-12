@@ -530,12 +530,27 @@ const removeImage = () => {
 };
 
 const handleProductsSelected = (products) => {
+  console.log("📦 Products selected:", products);
+
   products.forEach((product) => {
-    const exists = form.value.items.find((i) => i.product._id === product._id);
+    // Get product ID safely whether it's an object or string
+    const productId = typeof product === "object" ? product._id : product;
+
+    const exists = form.value.items.find((i) => {
+      const existingId =
+        typeof i.product === "object" ? i.product._id : i.product;
+      return existingId === productId;
+    });
+
     if (!exists) {
       form.value.items.push({ product, quantity: 1 });
+      console.log("✅ Added product:", product.name || product);
+    } else {
+      console.log("⚠️ Product already exists:", product.name || product);
     }
   });
+
+  console.log("📋 Total items after selection:", form.value.items.length);
   updatePricing();
   showProductSelector.value = false;
 };

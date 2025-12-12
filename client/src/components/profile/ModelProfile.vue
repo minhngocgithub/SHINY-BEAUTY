@@ -506,14 +506,8 @@ const handleLogout = async () => {
 // Load initial data
 onMounted(async () => {
   loadUserData();
-
-  // Fetch initial data based on active tab
   try {
-    console.log("🔄 Loading user stats...");
     const stats = await userStore.fetchStats();
-    console.log("📊 Stats loaded in ModelProfile:", stats);
-    console.log("📊 userStore.stats value:", userStore.stats);
-    // stats is stored in userStore.stats (reactive) and exposed via `userStats`
     emit("update-stats", stats);
 
     // Load data for the initial active tab

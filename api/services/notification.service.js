@@ -18,6 +18,7 @@ class NotificationService {
         PRODUCT_AVAILABLE: 'PRODUCT_AVAILABLE',
         PRICE_DROP: 'PRICE_DROP',
         FLASH_SALE: 'FLASH_SALE',
+        NEW_SALE_PROGRAM: 'NEW_SALE_PROGRAM',
         PROMOTION: 'PROMOTION',
         REVIEW_REMINDER: 'REVIEW_REMINDER',
         WISHLIST: 'WISHLIST',
@@ -850,6 +851,60 @@ class NotificationService {
         if (io) {
             io.of('/admin').to('admin:orders').emit('notification:new', notification)
             logger.info('Admin notification sent', { orderId: order._id })
+        }
+    }
+
+    /**
+     * Notify users about new sale program
+     */
+    static async notifyNewSaleProgram(io, userIds, saleProgram) {
+        try {
+            const discountText = saleProgram.benefits?.discountPercentage
+                ? `${saleProgram.benefits.discountPercentage}% OFF`
+                : saleProgram.benefits?.discountAmount
+                    ? `$${saleProgram.benefits.discountAmount} OFF`
+                    : 'Special Discount';
+
+            const notifications = userIds.map(userId => ({
+                userId,
+                type: this.TYPES.NEW_SALE_PROGRAM,
+                title: `🎉 ${saleProgram.title}`,
+                message: `${discountText} on selected products! Shop now before it ends.`,
+                priority: saleProgram.type === 'flash_sale' ? 'high' : 'normal',
+                actionUrl: `/sale/${saleProgram.slug || saleProgram._id}`,
+                data: {
+                    saleProgramId: saleProgram._id,
+                    slug: saleProgram.slug,
+                    title: saleProgram.title,
+                    type: saleProgram.type,
+                    discountPercentage: saleProgram.benefits?.discountPercentage,
+                    discountAmount: saleProgram.benefits?.discountAmount,
+                    startDate: saleProgram.startDate,
+                    endDate: saleProgram.endDate
+                }
+            }));
+
+            const created = await this.createBatchNotifications(notifications);
+
+            // Emit real-time notifications
+            if (io && created.length > 0) {
+                for (const { userId, notification } of created) {
+                    io.to(`user:${userId}`).emit('notification:new', notification);
+                }
+            }
+
+            logger.info('Sale program notifications sent', {
+                saleProgramId: saleProgram._id,
+                userCount: created.length
+            });
+
+            return created;
+        } catch (error) {
+            logger.error('Failed to notify new sale program', {
+                error: error.message,
+                saleProgramId: saleProgram._id
+            });
+            return [];
         }
     }
 
