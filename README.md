@@ -581,9 +581,9 @@ This project is private and intended for portfolio demonstration purposes.
 ## 📧 Contact
 
 For inquiries about this project, please contact:
-- **Email:** [Your Email]
-- **LinkedIn:** [Your LinkedIn Profile]
-- **GitHub:** [Your GitHub Profile]
+- **Email:** [minhngocitcareer@gmail.com]
+- **LinkedIn:** [www.linkedin.com/in/mngocne]
+- **GitHub:** [https://github.com/minhngocgithub.com]
 
 ---
 
