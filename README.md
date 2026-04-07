@@ -1,8 +1,8 @@
-# 🌟 Shiny Beauty - E-Commerce Platform
+# Shiny Beauty - E-Commerce Platform
 
 A comprehensive, full-stack e-commerce platform specialized in cosmetics and beauty products. Built with modern technologies and enterprise-grade architecture.
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Overview](#overview)
 - [Key Features](#key-features)
@@ -15,15 +15,15 @@ A comprehensive, full-stack e-commerce platform specialized in cosmetics and bea
 - [Deployment](#deployment)
 - [Performance & Optimization](#performance--optimization)
 
-## 🎯 Overview
+## Overview
 
 Shiny Beauty is a modern, scalable e-commerce platform designed for cosmetics retail. The application provides a complete shopping experience with advanced features including real-time notifications, loyalty programs, campaign management, and comprehensive admin controls.
 
 **Live Demo:** [Coming Soon]
 
-## ✨ Key Features
+## Key Features
 
-### 🛍️ Customer Features
+### Customer Features
 
 - **Product Management**
   - Advanced product search and filtering
@@ -56,7 +56,7 @@ Shiny Beauty is a modern, scalable e-commerce platform designed for cosmetics re
   - Real-time chat support
   - Email notifications for orders and promotions
 
-### 👨‍💼 Admin Features
+### Admin Features
 
 - **Dashboard & Analytics**
   - Comprehensive analytics dashboard
@@ -92,7 +92,7 @@ Shiny Beauty is a modern, scalable e-commerce platform designed for cosmetics re
   - User account management
   - Review moderation
 
-### 🔧 Technical Features
+###  Technical Features
 
 - **Real-time Communication**
   - Socket.io integration for live updates
@@ -176,7 +176,7 @@ Shiny Beauty is a modern, scalable e-commerce platform designed for cosmetics re
 - **Package Manager:** npm
 - **Scheduler:** node-cron
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -224,7 +224,7 @@ Shiny Beauty is a modern, scalable e-commerce platform designed for cosmetics re
 - **Caching Strategy:** Redis for session and data caching
 - **Real-time Updates:** Socket.io with Redis adapter for horizontal scaling
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -574,11 +574,11 @@ pm2 startup
 
 This project is currently maintained as a portfolio project. For any questions or suggestions, please feel free to reach out.
 
-## 📝 License
+##  License
 
 This project is private and intended for portfolio demonstration purposes.
 
-## 📧 Contact
+## Contact
 
 For inquiries about this project, please contact:
 - **Email:** [minhngocitcareer@gmail.com]
