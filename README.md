@@ -581,7 +581,7 @@ This project is private and intended for portfolio demonstration purposes.
 ## Contact
 
 For inquiries about this project, please contact:
-- **Email:** [minhngocitcareer@gmail.com]
+- **Email:** [ngoc.nguyen.itcareer@gmail.com]
 - **LinkedIn:** [www.linkedin.com/in/mngocne]
 - **GitHub:** [https://github.com/minhngocgithub.com]
 
